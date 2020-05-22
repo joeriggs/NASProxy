@@ -7,30 +7,30 @@ add a single encrypted NFS directory.  POC!  That's all it is right now.
 
 - proxyConfig.sh
   Creates the /etc/pfproxy.conf file.  This contains all of the configuration
-  information for the ProtectFile Proxy.
+  information for the NAS Proxy.
 
 - dcInstall.sh
   If you need to create a Windows Domain Controller, create it now.  You will
   need the /etc/pfproxy.conf file that was created by proxyConfig.sh.
 
 - proxyInstall.sh
-  Install and initialize ProtectFile onto the ProtectFile Proxy.
+  Install and initialize the encryption product onto the NAS Proxy.
 
     - proxyStart.sh
-      Start the ProtectFile Proxy.  This script starts all of the important
-      players (ProtectFile, NFSD, proxy FUSE driver, etc.) in the correct order.
+      Start the NAS Proxy.  This script starts all of the important players
+      (encryption software, NFSD, proxy FUSE driver, etc.) in the correct order.
       It loads all of the currently encrypted directories
 
         - dirAddNFS.sh
-          Encrypt an NFS directory and add it to the ProtectFile Proxy.
+          Encrypt an NFS directory and add it to the NAS Proxy.
 
         - dirDelNFS.sh
-          Remove an NFS directory from the ProtectFile Proxy, and unencrypt it.
+          Remove an NFS directory from the NAS Proxy, and unencrypt it.
 
     - proxyStop.sh
-      Shutdown the ProtectFile Proxy.  This includes stopping ProtectFile and
+      Shutdown the NAS Proxy.  This includes stopping the encryption software and
       disconnecting all of the mounts and exported directories.
 
 - proxyUninstall.sh
-  Unconfigure and remove ProtectFile from the ProtectFile Proxy.
+  Unconfigure and remove the encryption software from the NAS Proxy.
 
