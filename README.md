@@ -6,12 +6,12 @@ The following scripts will currently install and start the proxy.  And they'll
 add a single encrypted NFS directory.  POC!  That's all it is right now.
 
 - proxyConfig.sh
-  Creates the /etc/pfproxy.conf file.  This contains all of the configuration
+  Creates the /etc/NASProxy.conf file.  This contains all of the configuration
   information for the NAS Proxy.
 
 - dcInstall.sh
   If you need to create a Windows Domain Controller, create it now.  You will
-  need the /etc/pfproxy.conf file that was created by proxyConfig.sh.
+  need the /etc/NASProxy.conf file that was created by proxyConfig.sh.
 
 - proxyInstall.sh
   Install and initialize the encryption product onto the NAS Proxy.
