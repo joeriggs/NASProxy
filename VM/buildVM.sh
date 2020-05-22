@@ -18,11 +18,16 @@ readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
 
 readonly ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
 readonly ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
+readonly ISO_CSUM_NAME=CHECKSUM
 
-readonly OVFTOOL=/vmfs/volumes/datastore1/vmware-ovftool/ovftool
+readonly ESXI_DATASTORE_DIR=/vmfs/volumes/datastore1
+readonly OVFTOOL=${ESXI_DATASTORE_DIR}/vmware-ovftool/ovftool
 
-readonly OVA_FILE_NAME=NASProxy.ova
-readonly OVA_PATH_NAME=/vmfs/volumes/datastore1/${OVA_FILE_NAME}
+readonly OVA_NAME=NASProxy
+readonly OVA_FILE_NAME=${OVA_NAME}.ova
+readonly OVA_PATH_NAME=${ESXI_DATASTORE_DIR}/${OVA_FILE_NAME}
+
+echo "Building the VM image:"
 
 ################################################################################
 # Create and execute a command against the ESXi server.
@@ -120,48 +125,48 @@ EOF
 #   failure - Prints an error message and exits.
 ################################################################################
 deleteOldVM() {
-	echo    "Check for existing VM:"
+	echo    "  Check for existing VM:"
 
-	echo -n "  Get the list of VMs ... "
+	echo -n "    Get the list of VMs ... "
 	runESXiCmd "vim-cmd vmsvc/getallvms" &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-	echo -n "  Look for ProxyBuild ... "
-	cat ${LOG} | awk {'print $4'} | grep -q ProxyBuild/ProxyBuild.vmx
+	echo -n "    Look for ${OVA_FILE_NAME} ... "
+	cat ${LOG} | awk {'print $4'} | grep -q ${OVA_NAME}/${OVA_FILE_NAME}.vmx
 	if [ $? -ne 0 ]; then
 		printResult ${RESULT_PASS} "Missing.\n"
 	else
-		OLD_VMID=`grep ProxyBuild/ProxyBuild.vmx ${LOG} | awk {'print $1'}`
+		OLD_VMID=`grep ${OVA_NAME}/${OVA_FILE_NAME}.vmx ${LOG} | awk {'print $1'}`
 		[ -z "${OLD_VMID}" ] && printResult ${RESULT_FAIL} "Unable to find VMID.\n" && exit 1
 		printResult ${RESULT_WARN} "Found (VMID = ${OLD_VMID}).\n"
 
 		# Check to see if the VM is powered on.  We can't delete it while it's
 		# running.
-		echo -n "    Get power state of VM ${OLD_VMID} ... "
+		echo -n "      Get power state of VM ${OLD_VMID} ... "
 		runESXiCmd "vim-cmd vmsvc/power.getstate ${OLD_VMID}" &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 		grep -q "Powered on" ${LOG}
 		if [ $? -eq 0 ]; then
-			echo -n "      VM ${OLD_VMID} is running.  Shutting down ... "
+			echo -n "        VM ${OLD_VMID} is running.  Shutting down ... "
 			runESXiCmd "vim-cmd vmsvc/power.off ${OLD_VMID}" &> ${LOG}
 			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-			echo -n "      Get power state of VM ${OLD_VMID} ... "
+			echo -n "        Get power state of VM ${OLD_VMID} ... "
 			runESXiCmd "vim-cmd vmsvc/power.getstate ${OLD_VMID}" &> ${LOG}
 			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-			echo -n "      Verify VM ${OLD_VMID} is powered off ... "
+			echo -n "        Verify VM ${OLD_VMID} is powered off ... "
 			grep -q "Powered off" ${LOG}
 			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 		fi
 
-		echo -n "    Deleting ... "
+		echo -n "      Deleting ... "
 		runESXiCmd "vim-cmd vmsvc/destroy ${OLD_VMID}" &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 	fi
 
-	echo -n "  Look for ProxyBuild.ova ... "
+	echo -n "    Look for ${OVA_FILE_NAME} ... "
 	runESXiCmd "ls -l ${OVA_PATH_NAME}" &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 	grep -q "No such file or directory" ${LOG}
@@ -170,11 +175,11 @@ deleteOldVM() {
 	else
 		 printResult ${RESULT_WARN} "Found.\n"
 
-		echo -n "    Deleting ... "
+		echo -n "      Deleting ... "
 		runESXiCmd "rm -f ${OVA_PATH_NAME}" &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-		echo -n "    Check again ... "
+		echo -n "      Check again ... "
 		runESXiCmd "ls -l ${OVA_PATH_NAME}" &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 		grep -q "No such file or directory" ${LOG}
@@ -183,14 +188,14 @@ deleteOldVM() {
 }
 
 ########################################
-echo "Initialization:"
+echo "  Initialization:"
 
-echo -n "  CD to the build directory (${BLD_DIR}) ... "
+echo -n "    CD to the build directory (${BLD_DIR}) ... "
 cd ${BLD_DIR}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Done."
 
 readonly LOG=/tmp/`basename ${0}`.log
-echo -n "  Initialize log file (${LOG}) ... "
+echo -n "    Initialize log file (${LOG}) ... "
 rm -f ${LOG} &> /dev/null
 [ $? -ne 0 ] && echo "Unable to delete old log file." && exit 1
 touch ${LOG} &> /dev/null
@@ -198,14 +203,21 @@ touch ${LOG} &> /dev/null
 echo "Pass."
 
 # Load our Print utilities.
-echo -n "  Loading Print utilities library ... "
+echo -n "    Loading Print utilities library ... "
 readonly PRINT_UTILS_FILE=$( cd ${BLD_DIR}/.. && echo ${PWD} )/lib/printUtils
 [ ! -f ${PRINT_UTILS_FILE} ] && echo "File not found." && exit 1
 . ${PRINT_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
+# Load our build utilities.
+echo -n "    Loading build utilities library ... "
+readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
+[ ! -f ${BUILD_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${BUILD_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
 # Load our configuration utilities.
-echo -n "  Loading config utilities library ... "
+echo -n "    Loading config utilities library ... "
 readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
 [ ! -f ${CONFIG_UTILS_FILE} ] && echo "File not found." && exit 1
 . ${CONFIG_UTILS_FILE}
@@ -214,9 +226,12 @@ readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
 # Load our build conf file.
 loadConfigFile
 
+# Check for some required packages.
+installPackage "expect"
+
 # Make sure ovftool is installed on the ESXi server.  It's not normally there.
 # The user has to install it before they can use it.
-echo -n "  Verify ovftool is installed on the ESXi server ... "
+echo -n "    Verify ovftool is installed on the ESXi server ... "
 runESXiCmd "${OVFTOOL}" &> ${LOG}
 RC=$?
 if [ ${RC} -eq 0 ]; then
@@ -247,10 +262,10 @@ echo ""
 
 ########################################
 # Upload the OS distribution ISO to ESXi server.
-echo "OS Distro ISO Processing:"
+echo "    OS Distro ISO Processing:"
 
 # Check to see if the ISO file is already on the server.  Skip ahead if it is.
-echo -n "  Look for ISO file on ESXi server ... "
+echo -n "      Look for ISO file on ESXi server ... "
 runESXiCmd "ls /vmfs/volumes/datastore1/${ISO_FILE_NAME}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 
@@ -263,7 +278,7 @@ else
 	# Download the ISO.
 	# Check to see if the ISO file and checksum file have been downloaded.
 	# If not, then download them now.
-	echo -n "    Check for ISO file ... "
+	echo -n "    Check for ISO file (${ISO_FILE_NAME}) ... "
 	if [ -f ${ISO_FILE_NAME} ]; then
 		printResult ${RESULT_PASS} "Found.\n"
 	else
@@ -275,17 +290,13 @@ else
 	fi
 
 	echo -n "    Check for checksum file ... "
-	if [ -f /tmp/sha256sum.txt ]; then
+	if [ -f ${ISO_CSUM_NAME} ]; then
 		echo "Found."
 	else
 		printResult ${RESULT_WARN} "Missing.\n"
 
 		echo -n "      Download ... "
-		wget ${ISO_REPO_SITE}/sha256sum.txt &> ${LOG}
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-
-		echo -n "      Move to /tmp ... "
-		mv ./sha256sum.txt /tmp &> /dev/null
+		wget ${ISO_REPO_SITE}/${ISO_CSUM_NAME} &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 	fi
 
@@ -297,9 +308,8 @@ else
 	echo "Pass (${CALC_CHECKSUM})."
 
 	echo -n "    Locate checksum in checksum file ... "
-	grep ${ISO_FILE_NAME} /tmp/sha256sum.txt > /tmp/j2
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
-	REAL_CHECKSUM=`cat /tmp/j2 | awk {'print $1'}`
+	REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | grep SHA256 | awk {'print $4'}`
+	[ -z "${REAL_CHECKSUM}" ] && printResult ${RESULT_FAIL} && exit 1
 	echo "Pass (${REAL_CHECKSUM})."
 
 	echo -n "    Compare checksum values ... "
@@ -372,7 +382,7 @@ echo ""
 echo    "Create the VM:"
 
 echo -n "  Create dummy VM ... "
-runESXiCmd "vim-cmd vmsvc/createdummyvm ProxyBuild \[datastore1\]" &> ${LOG}
+runESXiCmd "vim-cmd vmsvc/createdummyvm ${OVA_FILE_NAMME} \[datastore1\]" &> ${LOG}
 printResult ${RESULT_PASS}
 
 echo -n "  Look for VMID ... "
@@ -552,6 +562,6 @@ echo ""
 
 ########################################
 # Done.  Success.
-printResult ${RESULT_PASS} "Success.\n\n"
+printResult ${RESULT_PASS} "  `basename ${0}` Success.\n"
 exit 0
 

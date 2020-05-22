@@ -9,6 +9,12 @@ DRIVER_NAME=proxy_bridge
 readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
 
+################################################################################
+################################################################################
+# Processing starts here.
+################################################################################
+################################################################################
+
 echo "Building the bridge driver:"
 
 ########################################
@@ -30,6 +36,25 @@ readonly PRINT_UTILS_FILE=${TOP_DIR}/lib/printUtils
 . ${PRINT_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
+# Load our build utilities.
+echo -n "    Loading build utilities library ... "
+readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
+[ ! -f ${BUILD_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${BUILD_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+# Check for some required packages.
+installPackage "gcc"
+installPackage "fuse3-devel"
+installPackage "libattr-devel"
+installPackage "openssl-devel"
+
+echo ""
+
+########################################
+# Go build it.
+echo "  Build driver:"
+
 # CD to the build directory.
 echo -n "    CD to build dir ... "
 cd ${BLD_DIR} &> ${LOG}
@@ -49,6 +74,7 @@ echo -n "    Cleanup ... "
 rm -f libfuse3.so* ${DRIVER_NAME}.d ${DRIVER_NAME}.o &> /dev/null
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-printResult ${RESULT_PASS} "    Success.\n"
+echo ""
+printResult ${RESULT_PASS} "  `basename ${0}` Success.\n"
 exit 0
 

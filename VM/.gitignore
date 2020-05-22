@@ -1,0 +1,6 @@
+# Files created while we're building our VM image.
+*.iso
+*.ova
+
+# This is the checksum file for the CentOS 8.1 ISO image.
+CHECKSUM

@@ -28,6 +28,13 @@ readonly PRINT_UTILS_FILE=${TOP_DIR}/lib/printUtils
 . ${PRINT_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
+# Load our build utilities.
+echo -n "    Loading build utilities library ... "
+readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
+[ ! -f ${BUILD_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${BUILD_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
 # Load our configuration utilities.
 echo -n "  Loading config utilities library ... "
 readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
@@ -35,13 +42,8 @@ readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
 . ${CONFIG_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Make sure allof the required tools are installed.
-echo -n "    Check for rpmdev-setuptree ... "
-which rpmdev-setuptree &> ${LOG}
-[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-echo -n "    Check for rpmbuild ... "
-which rpmbuild &> ${LOG}
-[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+# Check for some required packages.
+installPackage "rpmdevtools"
 
 # CD to the build directory.
 echo -n "    CD to build dir ... "
@@ -63,6 +65,7 @@ echo -n "    Build the NAS Proxy RPM file ... "
 rpmbuild -vv -ba NASProxy.spec &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-printResult ${RESULT_PASS} "    Success.\n"
+echo ""
+printResult ${RESULT_PASS} "  `basename ${0}` Success.\n"
 exit 0
 

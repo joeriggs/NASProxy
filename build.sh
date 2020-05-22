@@ -8,7 +8,7 @@
 export TOP_DIR=$( cd `dirname ${0}` && echo ${PWD} )
 readonly DRIVER_BUILD_SCRIPT=${TOP_DIR}/driver/buildBridgeDriver.sh
 readonly RPM_BUILD_SCRIPT=${TOP_DIR}/RPM/buildRPM.sh
-readonly ISO_BUILD_SCRIPT=${TOP_DIR}/ISO/buildISO.sh
+readonly VM_BUILD_SCRIPT=${TOP_DIR}/VM/buildVM.sh
 
 ########################################
 # Initialize some stuff before we start building.
@@ -46,7 +46,7 @@ loadConfigFile
 echo -n "Locate build scripts ... "
 [ ! -f ${DRIVER_BUILD_SCRIPT} ] && printResult ${RESULT_FAIL} "Can't find ${DRIVER_BUILD_SCRIPT}\n" && exit 1
 [ ! -f ${RPM_BUILD_SCRIPT}    ] && printResult ${RESULT_FAIL} "Can't find ${RPM_BUILD_SCRIPT}\n"    && exit 1
-[ ! -f ${ISO_BUILD_SCRIPT}    ] && printResult ${RESULT_FAIL} "Can't find ${ISO_BUILD_SCRIPT}\n"    && exit 1
+[ ! -f ${VM_BUILD_SCRIPT}     ] && printResult ${RESULT_FAIL} "Can't find ${VM_BUILD_SCRIPT}\n"     && exit 1
 printResult ${RESULT_PASS}
 echo ""
 
@@ -63,8 +63,8 @@ ${RPM_BUILD_SCRIPT}
 echo ""
 
 ########################################
-# Build the ISO.  It's the actual VM that is loaded into ESXi.
-${ISO_BUILD_SCRIPT}
+# Build the VM.  It's the actual VM that is loaded into ESXi.
+${VM_BUILD_SCRIPT}
 [ $? -ne 0 ] && exit 1
 echo ""
 

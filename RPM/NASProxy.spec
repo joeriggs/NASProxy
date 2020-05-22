@@ -2,6 +2,7 @@ Name:           NAS_Proxy
 Version:        0.1
 Release:        1
 Summary:        NAS Proxy
+License:        GPLv3+
 
 %description 
 The NAS Proxy is a Virtual Machine that serves as a proxy in front of a NAS.
@@ -24,19 +25,10 @@ mkdir -p ${RPM_BUILD_ROOT}/%{_dst_lib_dir}
 
 cp %{_src_drv_dir}/proxy_bridge       ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxy_bridge
 
-cp %{_src_bin_dir}/dirAddCIFS.sh      ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/dirAddCIFS.sh
-cp %{_src_bin_dir}/dirAddNFS.sh       ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/dirAddNFS.sh
-cp %{_src_bin_dir}/dirDelCIFS.sh      ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/dirDelCIFS.sh
-cp %{_src_bin_dir}/dirDelNFS.sh       ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/dirDelNFS.sh
 cp %{_src_bin_dir}/proxyConfig.sh     ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxyConfig.sh
-cp %{_src_bin_dir}/proxyInstall.sh    ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxyInstall.sh
-cp %{_src_bin_dir}/proxyStart.sh      ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxyStart.sh
-cp %{_src_bin_dir}/proxyStop.sh       ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxyStop.sh
-cp %{_src_bin_dir}/proxyUninstall.sh  ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxyUninstall.sh
 
 cp %{_src_lib_dir}/commonUtils        ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/commonUtils
 cp %{_src_lib_dir}/printUtils         ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/printUtils
-cp %{_src_lib_dir}/windowsDomain      ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/windowsDomain
 
 %post
 
