@@ -1,0 +1,8 @@
+# Files and directories related to building libfuse.
+libfuse*.*
+fuse-3.3.0
+
+# Files related to building the proxy_bridge driver.
+proxy_bridge
+*.d
+*.o

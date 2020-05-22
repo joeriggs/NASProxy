@@ -1,0 +1,3 @@
+# Files created while we're building our VM image.
+*.iso
+*.ova
