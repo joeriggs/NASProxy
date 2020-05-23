@@ -25,7 +25,12 @@ readonly OVFTOOL=${ESXI_DATASTORE_DIR}/vmware-ovftool/ovftool
 
 readonly OVA_NAME=NASProxy
 readonly OVA_FILE_NAME=${OVA_NAME}.ova
-readonly OVA_PATH_NAME=${ESXI_DATASTORE_DIR}/${OVA_FILE_NAME}
+readonly OVA_PATH_NAME_RMT=${ESXI_DATASTORE_DIR}/tmp.${OVA_FILE_NAME}
+readonly OVA_PATH_NAME_LCL=${TOP_DIR}/${OVA_FILE_NAME}
+
+readonly ESXI_PROJECT_DIR=${ESXI_DATASTORE_DIR}/${OVA_NAME}
+
+readonly VMX_PATH_LOCL=/tmp/${OVA_NAME}.vmx
 
 echo "Building the VM image:"
 
@@ -52,8 +57,20 @@ expect "~ #"
 EOF
 
 	chmod +x /tmp/j.sh
-	/tmp/j.sh &> ${LOG}
-	local RC=$?
+
+	# Be prepared to retry if the command fails the first time.
+	for COUNT in {1..5}; do
+		/tmp/j.sh &> ${LOG}
+		local RC=$?
+
+		# Add as many checks as you want right here.  These checks are
+		# looking for proof that the command completed.  We're not
+		# concerned with whether we got the desired result.  We just
+		# want to be sure the SSH command didn't run into any kind of
+		# weird network or other weird problems.
+		grep -q "Packet corrupt" ${LOG}
+		[ $? -ne 0 ] && break
+	done
 
 	# If the script ran to the end, take a look at the result.
 	if [ ${RC} -eq 0 ]; then
@@ -131,12 +148,12 @@ deleteOldVM() {
 	runESXiCmd "vim-cmd vmsvc/getallvms" &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-	echo -n "    Look for ${OVA_FILE_NAME} ... "
-	cat ${LOG} | awk {'print $4'} | grep -q ${OVA_NAME}/${OVA_FILE_NAME}.vmx
+	echo -n "    Look for #1 ${OVA_NAME} ... "
+	cat ${LOG} | awk {'print $4'} | grep -q ${OVA_NAME}/${OVA_NAME}.vmx
 	if [ $? -ne 0 ]; then
-		printResult ${RESULT_PASS} "Missing.\n"
+		printResult ${RESULT_PASS} "Not found.\n"
 	else
-		OLD_VMID=`grep ${OVA_NAME}/${OVA_FILE_NAME}.vmx ${LOG} | awk {'print $1'}`
+		OLD_VMID=`grep ${OVA_NAME}/${OVA_NAME}.vmx ${LOG} | awk {'print $1'}`
 		[ -z "${OLD_VMID}" ] && printResult ${RESULT_FAIL} "Unable to find VMID.\n" && exit 1
 		printResult ${RESULT_WARN} "Found (VMID = ${OLD_VMID}).\n"
 
@@ -166,8 +183,8 @@ deleteOldVM() {
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 	fi
 
-	echo -n "    Look for ${OVA_FILE_NAME} ... "
-	runESXiCmd "ls -l ${OVA_PATH_NAME}" &> ${LOG}
+	echo -n "    Look for #2 ${OVA_NAME} ... "
+	runESXiCmd "ls -ld ${ESXI_PROJECT_DIR}" &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 	grep -q "No such file or directory" ${LOG}
 	if [ $? -eq 0 ]; then
@@ -176,11 +193,11 @@ deleteOldVM() {
 		 printResult ${RESULT_WARN} "Found.\n"
 
 		echo -n "      Deleting ... "
-		runESXiCmd "rm -f ${OVA_PATH_NAME}" &> ${LOG}
+		runESXiCmd "rm -rf ${ESXI_PROJECT_DIR}" &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 		echo -n "      Check again ... "
-		runESXiCmd "ls -l ${OVA_PATH_NAME}" &> ${LOG}
+		runESXiCmd "ls -ld ${ESXI_PROJECT_DIR}" &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 		grep -q "No such file or directory" ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
@@ -228,6 +245,12 @@ loadConfigFile
 
 # Check for some required packages.
 installPackage "expect"
+
+# Delete the local copy of the OVA file.  We don't want to accidentally grab it
+# if the build fails.
+echo -n "    Delete local OVA file ... "
+rm -f ${OVA_PATH_NAME_LCL} &> ${LOG}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
 # Make sure ovftool is installed on the ESXi server.  It's not normally there.
 # The user has to install it before they can use it.
@@ -325,12 +348,12 @@ echo ""
 
 ########################################
 # Upload the kickstart ISO to ESXi server.
-echo "Kickstart ISO Processing:"
+echo "  Kickstart ISO Processing:"
 
 readonly KICKSTART_ISO_NAME=kickstart.iso
 readonly KICKSTART_ISO_PATH=/vmfs/volumes/datastore1/${KICKSTART_ISO_NAME}
 
-echo -n "  Check for ${KICKSTART_ISO_NAME} on the ESXi server ... "
+echo -n "    Check for ${KICKSTART_ISO_NAME} on the ESXi server ... "
 runESXiCmd "ls -l ${KICKSTART_ISO_PATH}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 
@@ -338,14 +361,14 @@ grep -q "No such file or directory" ${LOG}
 if [ $? -ne 0 ]; then
 	printResult ${RESULT_WARN} "Found.\n"
 
-	echo -n "    Deleting old file ... "
+	echo -n "      Deleting old file ... "
 	runESXiCmd "rm -f ${KICKSTART_ISO_PATH}" &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 	grep -q "Device or resource busy" ${LOG}
 	[ $? -eq 0 ] && printResult ${RESULT_FAIL} "File busy.  Can't delete.\n" && exit 1
 	printResult ${RESULT_PASS}
 
-	echo -n "  Check again ... "
+	echo -n "    Check again ... "
 	runESXiCmd "ls -l ${KICKSTART_ISO_PATH}" &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 
@@ -357,21 +380,21 @@ else
 	printResult ${RESULT_PASS} "Not found.\n"
 fi
 
-echo -n "  Create ${KICKSTART_ISO_NAME} ... "
+echo -n "    Create ${KICKSTART_ISO_NAME} ... "
 mkisofs -V OEMDRV -o ${KICKSTART_ISO_NAME} ks &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "  Upload ${KICKSTART_ISO_NAME} to the ESXi server ... "
+echo -n "    Upload ${KICKSTART_ISO_NAME} to the ESXi server ... "
 runESXiSCPPut ${KICKSTART_ISO_NAME} ${KICKSTART_ISO_PATH}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "  Verify ... "
+echo -n "    Verify ... "
 runESXiCmd "ls -l ${KICKSTART_ISO_PATH}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 grep -q "No such file or directory" ${LOG}
 [ $? -eq 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "  Delete local copy ... "
+echo -n "    Delete local copy ... "
 rm -f ${KICKSTART_ISO_NAME} &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
@@ -379,27 +402,27 @@ echo ""
 
 ########################################
 # Create the VM.  This command returns the vmid.
-echo    "Create the VM:"
+echo    "  Create the VM:"
 
-echo -n "  Create dummy VM ... "
-runESXiCmd "vim-cmd vmsvc/createdummyvm ${OVA_FILE_NAMME} \[datastore1\]" &> ${LOG}
+echo -n "    Create dummy VM ... "
+runESXiCmd "vim-cmd vmsvc/createdummyvm ${OVA_NAME} \[datastore1\]" &> ${LOG}
 printResult ${RESULT_PASS}
 
-echo -n "  Look for VMID ... "
+echo -n "    Look for VMID ... "
 runESXiCmd "vim-cmd vmsvc/getallvms" &> ${LOG}
 
-VMID=`grep ProxyBuild/ProxyBuild.vmx ${LOG} | awk {'print $1'}`
+VMID=`grep ${OVA_NAME}/${OVA_NAME}.vmx ${LOG} | awk {'print $1'}`
 [ -z "${VMID}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${VMID}).\n"
 
 echo ""
 
 ########################################
 # The VM is created.  Configure it.
-echo    "Configure the VM:"
+echo    "  Configure the VM:"
 
 # Set the disk size.
-echo -n "  Set disk size ... "
-runESXiCmd "vmkfstools -X 20GB /vmfs/volumes/datastore1/ProxyBuild/ProxyBuild.vmdk" &> ${LOG}
+echo -n "    Set disk size ... "
+runESXiCmd "vmkfstools -X 20GB /vmfs/volumes/datastore1/${OVA_NAME}/${OVA_NAME}.vmdk" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Add a network adapter.
@@ -416,68 +439,68 @@ echo ""
 
 ########################################
 # Download the vmx file, modify it, and upload it back to the ESXi server.
-echo    "Modify the vmx file:"
+echo    "  Modify the vmx file:"
 
 # Download the vmx file, so we can edit it.
-echo -n "  Download ... "
-runESXiSCPGet /vmfs/volumes/datastore1/ProxyBuild/ProxyBuild.vmx /tmp/ProxyBuild.vmx
+echo -n "    Download ... "
+runESXiSCPGet ${ESXI_DATASTORE_DIR}/${OVA_NAME}/${OVA_NAME}.vmx ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-# Change the virtual HW version.  The CLI creates a V10 thingie, and the GUI
+# Change the "virtualHW version".  The CLI creates a V10 thingie, and the GUI
 # won't allow us to edit it.  So changing the HW version to 8 fixes that.
-echo -n "  Set virtualHW.version ... "
-sed -i -e 's/virtualHW.version = "10"/virtualHW.version = "8"/;' /tmp/ProxyBuild.vmx
+echo -n "    Set virtualHW.version ... "
+sed -i -e 's/virtualHW.version = "10"/virtualHW.version = "8"/;' ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Set Virtual DVD 0 to point to the OS Distribution ISO.
-echo -n "  Configure DVD 0 for the OS Distro ISO ... "
-echo "ide0:0.deviceType = \"cdrom-image\""                             >> /tmp/ProxyBuild.vmx
+echo -n "    Configure DVD 0 for the OS Distro ISO ... "
+echo "ide0:0.deviceType = \"cdrom-image\""                             >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail1.\n" && exit 1
-echo "ide0:0.fileName = \"/vmfs/volumes/datastore1/${ISO_FILE_NAME}\"" >> /tmp/ProxyBuild.vmx
+echo "ide0:0.fileName = \"/vmfs/volumes/datastore1/${ISO_FILE_NAME}\"" >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail2.\n" && exit 1
-echo "ide0:0.present = \"TRUE\""                                       >> /tmp/ProxyBuild.vmx
+echo "ide0:0.present = \"TRUE\""                                       >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail3.\n" && exit 1
 printResult ${RESULT_PASS}
 
 # Set Virtual DVD 1 to point to the kickstart ISO.
-echo -n "  Configure DVD 1 for the Kickstart ISO ... "
-echo "ide1:0.deviceType = \"cdrom-image\""                             >> /tmp/ProxyBuild.vmx
+echo -n "    Configure DVD 1 for the Kickstart ISO ... "
+echo "ide1:0.deviceType = \"cdrom-image\""                             >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail1.\n" && exit 1
-echo "ide1:0.fileName = \"${KICKSTART_ISO_PATH}\""                     >> /tmp/ProxyBuild.vmx
+echo "ide1:0.fileName = \"${KICKSTART_ISO_PATH}\""                     >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail2.\n" && exit 1
-echo "ide1:0.present = \"TRUE\""                                       >> /tmp/ProxyBuild.vmx
+echo "ide1:0.present = \"TRUE\""                                       >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail3.\n" && exit 1
 printResult ${RESULT_PASS}
 
 # Set the memory size.
-echo -n "  Configure memory size ... "
-echo 'memSize = "2048"'                                                >> /tmp/ProxyBuild.vmx
+echo -n "    Configure memory size ... "
+echo 'memSize = "2048"'                                                >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 printResult ${RESULT_PASS}
 
 # Add the network adapter.  There is a vim-cmd command to do this task (see the
 # code above), but it seems to be broken.  So we'll manually add it for now.
-echo -n "  Add network adapter ... "
-echo 'ethernet0.virtualDev = "vmxnet3"'                                >> /tmp/ProxyBuild.vmx
+echo -n "    Add network adapter ... "
+echo 'ethernet0.virtualDev = "vmxnet3"'                                >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail1.\n" && exit 1
-echo 'ethernet0.networkName = "VM Network"'                            >> /tmp/ProxyBuild.vmx
+echo 'ethernet0.networkName = "VM Network"'                            >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail2.\n" && exit 1
-echo 'ethernet0.addressType = "generated"'                             >> /tmp/ProxyBuild.vmx
+echo 'ethernet0.addressType = "generated"'                             >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail3.\n" && exit 1
-echo 'ethernet0.present = "TRUE"'                                      >> /tmp/ProxyBuild.vmx
+echo 'ethernet0.present = "TRUE"'                                      >> ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail4.\n" && exit 1
 printResult ${RESULT_PASS}
 
 # Upload the modified vmx file.
-echo -n "  Upload ... "
-runESXiSCPPut /tmp/ProxyBuild.vmx /vmfs/volumes/datastore1/ProxyBuild/ProxyBuild.vmx
+echo -n "    Upload ... "
+runESXiSCPPut ${VMX_PATH_LOCL} ${ESXI_DATASTORE_DIR}/${OVA_NAME}/${OVA_NAME}.vmx
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo ""
 
 ########################################
 # Reload the VM, so it accepts all of our changes.
-echo -n "Reload the VM ... "
+echo -n "  Reload the VM ... "
 runESXiCmd "vim-cmd vmsvc/reload ${VMID}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
@@ -485,13 +508,13 @@ echo ""
 
 ########################################
 # Start the VM and let it configure itself.
-echo    "Boot the VM.  Let it configure itself:"
-echo -n "  Issuing \"Power On\" command ... "
+echo    "  Boot the VM.  Let it configure itself:"
+echo -n "    Issuing \"Power On\" command ... "
 runESXiCmd "vim-cmd vmsvc/power.on ${VMID}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # First, we wait to see it get powered on.
-echo -n "  Wait for \"power on\" state ... "
+echo -n "    Wait for \"power on\" state ... "
 while true; do
 	runESXiCmd "vim-cmd vmsvc/power.getstate ${VMID}" &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
@@ -501,7 +524,7 @@ while true; do
 done
 
 # Then we wait for it to complete the installation and shut itself off.
-echo -n "  Wait for \"power off\" state (this will take several minutes) ... "
+echo -n "    Wait for \"power off\" state (this will take several minutes) ... "
 while true; do
 	runESXiCmd "vim-cmd vmsvc/power.getstate ${VMID}" &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
@@ -515,44 +538,51 @@ echo ""
 ########################################
 # Post processing.  The VM is created.  Now we need to clean it up and save it.
 # Download the vmx file, modify it, and upload it back to the ESXi server.
-echo    "Post processing:"
+echo    "  Post processing:"
 
 # Download the vmx file, so we can edit it.
-echo -n "  Download vmx file ... "
-runESXiSCPGet /vmfs/volumes/datastore1/ProxyBuild/ProxyBuild.vmx /tmp/ProxyBuild.vmx
+echo -n "    Download vmx file ... "
+runESXiSCPGet ${ESXI_DATASTORE_DIR}/${OVA_NAME}/${OVA_NAME}.vmx ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Remove DVD 0 (the OS Distro ISO).
-echo -n "  Remove DVD 0 ... "
-sed -i '/^ide0:0/d' /tmp/ProxyBuild.vmx
+echo -n "    Remove DVD 0 ... "
+sed -i '/^ide0:0/d' ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Remove DVD 1 (the Kickstart ISO).
-echo -n "  Remove DVD 1 ... "
-sed -i '/^ide1:0/d' /tmp/ProxyBuild.vmx
+echo -n "    Remove DVD 1 ... "
+sed -i '/^ide1:0/d' ${VMX_PATH_LOCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Upload the modified vmx file.
-echo -n "  Upload ... "
-runESXiSCPPut /tmp/ProxyBuild.vmx /vmfs/volumes/datastore1/ProxyBuild/ProxyBuild.vmx
+echo -n "    Upload ... "
+runESXiSCPPut ${VMX_PATH_LOCL} ${ESXI_DATASTORE_DIR}/${OVA_NAME}/${OVA_NAME}.vmx
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Reload the VM, so it accepts all of our changes.
-echo -n "Reload the VM ... "
+echo -n "  Reload the VM ... "
 runESXiCmd "vim-cmd vmsvc/reload ${VMID}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Create an OVA file from the VM.  We specify SHA1 so that the OVA file can be
 # loaded by an ESXi 5 server.  ESXi 5 doesn't support SHA256.
-echo -n "Create OVA file ... "
-runESXiCmd "${OVFTOOL} --disableVerification --noSSLVerify --powerOffSource --shaAlgorithm=SHA1 -ds=datastore1 vi://${ESXI_USERNAME}:${ESXI_PASSWORD}@${ESXI_IP}/ProxyBuild ${OVA_PATH_NAME}" &> ${LOG}
+echo -n "  Create OVA file ... "
+runESXiCmd "${OVFTOOL} --overwrite --disableVerification --noSSLVerify --powerOffSource --shaAlgorithm=SHA1 -ds=datastore1 vi://${ESXI_USERNAME}:${ESXI_PASSWORD}@${ESXI_IP}/${OVA_NAME} ${OVA_PATH_NAME_RMT}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 grep -q "Completed successfully" ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
+# Take a look at the ESXi server and make sure the OVA file is there.
+echo -n "  Use 'ls' to look for ${OVA_NAME} ... "
+runESXiCmd "ls -ld ${OVA_PATH_NAME_RMT}" &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+grep -q "No such file or directory" ${LOG}
+[ $? -eq 0 ] && printResult ${RESULT_PASS} "Not found.\n" && exit 1 ; printResult ${RESULT_WARN} "Found.\n"
+
 # Download the OVA file from the ESXi server.
-echo -n "  Download OVA file ... "
-runESXiSCPGet ${OVA_PATH_NAME} ./${OVA_FILE_NAME}
+echo -n "    Download OVA file ... "
+runESXiSCPGet ${OVA_PATH_NAME_RMT} ${OVA_PATH_NAME_LCL}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Delete the VM from the ESXi server.
