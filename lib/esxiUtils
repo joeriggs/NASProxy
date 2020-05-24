@@ -1,0 +1,227 @@
+
+################################################################################
+# Macros and functions that are used to access and manipulate VMs on an ESXi
+# server.
+#
+# You also need to install ovftool on the ESXi server:
+# 1. Download and install ovftool onto a Linux box.  I've been running with:
+#      VMware ovftool 4.2.0 (build-5965791)
+# 2. scp the /usr/lib/vmware-ovftool directory to /vmfs/volumes/datastore1 on
+#    the ESXi server.  This tool expects to find ovftool in that location.
+# 3. Edit the vmware-ovftool/ovftool script and change the shell interpreter
+#    from /bin/bash to /bin/sh.
+# 4. Test it and make sure it works.
+################################################################################
+
+readonly ESXI_DATASTORE_DIR=/vmfs/volumes/datastore1
+readonly OVFTOOL=${ESXI_DATASTORE_DIR}/vmware-ovftool/ovftool
+
+################################################################################
+# Create and execute a command against the ESXi server.
+#
+# Output:
+#   0 - Script ran to completion.  No obvious error detected.
+#   1 - Connection refused.
+#   2 - Unknown failure.
+################################################################################
+runESXiCmd() {
+	local CMD=${1}
+
+	cat > /tmp/j.sh << EOF
+#!/usr/bin/expect -f
+set timeout 3600
+spawn ssh -o StrictHostKeyChecking=no ${ESXI_USERNAME}@${ESXI_IP}
+expect "Password:"
+send "${ESXI_PASSWORD}\r"
+expect "~ #"
+send "${CMD}\r"
+expect "~ #"
+EOF
+
+	chmod +x /tmp/j.sh
+
+	# Be prepared to retry if the command fails the first time.
+	for COUNT in {1..5}; do
+		/tmp/j.sh &> ${LOG}
+		local RC=$?
+
+		# Add as many checks as you want right here.  These checks are
+		# looking for proof that the command completed.  We're not
+		# concerned with whether we got the desired result.  We just
+		# want to be sure the SSH command didn't run into any kind of
+		# weird network or other weird problems.
+		grep -q "Packet corrupt" ${LOG}
+		[ $? -ne 0 ] && break
+	done
+
+	# If the script ran to the end, take a look at the result.
+	if [ ${RC} -eq 0 ]; then
+		grep -q "Connection refused" ${LOG}
+		[ $? -eq 0 ] && RC=1
+	fi
+	return ${RC}
+}
+
+################################################################################
+# SCP put a file to the ESXi server.
+#
+# Input:
+#   LCL - The full pathname of the file that we want to copy to the ESXi server.
+#
+#   RMT - THe full pathname on the ESXi server to place the file.
+################################################################################
+runESXiSCPPut() {
+	local LCL=${1}
+	local RMT=${2}
+
+	cat > /tmp/j.sh << EOF
+#!/usr/bin/expect -f
+set timeout 3600
+spawn scp -o StrictHostKeyChecking=no ${LCL} ${ESXI_USERNAME}@${ESXI_IP}:${RMT}
+expect "Password:"
+send "${ESXI_PASSWORD}\r"
+expect "~ #"
+EOF
+
+	chmod +x /tmp/j.sh
+	/tmp/j.sh &> ${LOG}
+	local RC=$?
+
+	#rm -f /tmp/j.sh
+
+	return ${RC}
+}
+
+################################################################################
+# SCP get a file from the ESXi server.
+################################################################################
+runESXiSCPGet() {
+	local RMT=${1}
+	local LCL=${2}
+
+	cat > /tmp/j.sh << EOF
+#!/usr/bin/expect -f
+set timeout 3600
+spawn scp -o StrictHostKeyChecking=no ${ESXI_USERNAME}@${ESXI_IP}:${RMT} ${LCL}
+expect "Password:"
+send "${ESXI_PASSWORD}\r"
+expect "~ #"
+EOF
+
+	chmod +x /tmp/j.sh
+	/tmp/j.sh &> ${LOG}
+	local RC=$?
+
+	#rm -f /tmp/j.sh
+
+	return ${RC}
+}
+
+################################################################################
+# Check to see if there is already a copy of our VM on the ESXi server.  If
+# there is, delete it.
+#
+# Input:
+#   N/A.
+#
+# Output:
+#   success - Returns to the caller.
+#   failure - Prints an error message and exits.
+################################################################################
+deleteOldVM() {
+	echo    "  Check for existing VM:"
+
+	echo -n "    Get the list of VMs ... "
+	runESXiCmd "vim-cmd vmsvc/getallvms" &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    Look for #1 ${OVA_NAME} ... "
+	cat ${LOG} | awk {'print $4'} | grep -q ${OVA_NAME}/${OVA_NAME}.vmx
+	if [ $? -ne 0 ]; then
+		printResult ${RESULT_PASS} "Not found.\n"
+	else
+		OLD_VMID=`grep ${OVA_NAME}/${OVA_NAME}.vmx ${LOG} | awk {'print $1'}`
+		[ -z "${OLD_VMID}" ] && printResult ${RESULT_FAIL} "Unable to find VMID.\n" && exit 1
+		printResult ${RESULT_WARN} "Found (VMID = ${OLD_VMID}).\n"
+
+		# Check to see if the VM is powered on.  We can't delete it while it's
+		# running.
+		echo -n "      Get power state of VM ${OLD_VMID} ... "
+		runESXiCmd "vim-cmd vmsvc/power.getstate ${OLD_VMID}" &> ${LOG}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+		grep -q "Powered on" ${LOG}
+		if [ $? -eq 0 ]; then
+			echo -n "        VM ${OLD_VMID} is running.  Shutting down ... "
+			runESXiCmd "vim-cmd vmsvc/power.off ${OLD_VMID}" &> ${LOG}
+			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+			echo -n "        Get power state of VM ${OLD_VMID} ... "
+			runESXiCmd "vim-cmd vmsvc/power.getstate ${OLD_VMID}" &> ${LOG}
+			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+			echo -n "        Verify VM ${OLD_VMID} is powered off ... "
+			grep -q "Powered off" ${LOG}
+			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+		fi
+
+		echo -n "      Deleting ... "
+		runESXiCmd "vim-cmd vmsvc/destroy ${OLD_VMID}" &> ${LOG}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+	fi
+
+	echo -n "    Look for #2 ${OVA_NAME} ... "
+	runESXiCmd "ls -ld ${ESXI_PROJECT_DIR}" &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+	grep -q "No such file or directory" ${LOG}
+	if [ $? -eq 0 ]; then
+		 printResult ${RESULT_PASS} "Not found.\n"
+	else
+		 printResult ${RESULT_WARN} "Found.\n"
+
+		echo -n "      Deleting ... "
+		runESXiCmd "rm -rf ${ESXI_PROJECT_DIR}" &> ${LOG}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+		echo -n "      Check again ... "
+		runESXiCmd "ls -ld ${ESXI_PROJECT_DIR}" &> ${LOG}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+		grep -q "No such file or directory" ${LOG}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+	fi
+}
+
+################################################################################
+# Make sure ovftool is installed on the ESXi server.  It's not normally there.
+# The user has to install it before they can use it.
+#
+# Input:
+#   N/A
+#
+# Output:
+#   Success - Logs a message and returns.
+#   Failure - Logs a message and exits.
+################################################################################
+verifyOvftool() {
+	echo -n "    Verify ovftool is installed on the ESXi server ... "
+	runESXiCmd "${OVFTOOL}" &> ${LOG}
+	RC=$?
+	if [ ${RC} -eq 0 ]; then
+		# This is the expected string the ovftool will return.  If we receive
+		# this, then we know the command worked.
+		grep -q "Completed with errors" ${LOG}
+		if [ $? -eq 0 ]; then
+			printResult ${RESULT_PASS}
+		else
+			printResult ${RESULT_FAIL} "Unknown result.\n" && exit 1
+		fi
+	else
+		if [ ${RC} -eq 1 ]; then
+			printResult ${RESULT_FAIL} "Connection refused.\n"
+		else
+			printResult ${RESULT_FAIL}
+		fi
+		exit 1
+	fi
+}
+

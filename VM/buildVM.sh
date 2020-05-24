@@ -20,9 +20,6 @@ readonly ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
 readonly ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
 readonly ISO_CSUM_NAME=CHECKSUM
 
-readonly ESXI_DATASTORE_DIR=/vmfs/volumes/datastore1
-readonly OVFTOOL=${ESXI_DATASTORE_DIR}/vmware-ovftool/ovftool
-
 readonly OVA_NAME=NASProxy
 readonly OVA_FILE_NAME=${OVA_NAME}.ova
 readonly OVA_PATH_NAME_RMT=${ESXI_DATASTORE_DIR}/tmp.${OVA_FILE_NAME}
@@ -32,179 +29,8 @@ readonly ESXI_PROJECT_DIR=${ESXI_DATASTORE_DIR}/${OVA_NAME}
 
 readonly VMX_PATH_LOCL=/tmp/${OVA_NAME}.vmx
 
-echo "Building the VM image:"
-
-################################################################################
-# Create and execute a command against the ESXi server.
-#
-# Output:
-#   0 - Script ran to completion.  No obvious error detected.
-#   1 - Connection refused.
-#   2 - Unknown failure.
-################################################################################
-runESXiCmd() {
-	local CMD=${1}
-
-	cat > /tmp/j.sh << EOF
-#!/usr/bin/expect -f
-set timeout 3600
-spawn ssh -o StrictHostKeyChecking=no ${ESXI_USERNAME}@${ESXI_IP}
-expect "Password:"
-send "${ESXI_PASSWORD}\r"
-expect "~ #"
-send "${CMD}\r"
-expect "~ #"
-EOF
-
-	chmod +x /tmp/j.sh
-
-	# Be prepared to retry if the command fails the first time.
-	for COUNT in {1..5}; do
-		/tmp/j.sh &> ${LOG}
-		local RC=$?
-
-		# Add as many checks as you want right here.  These checks are
-		# looking for proof that the command completed.  We're not
-		# concerned with whether we got the desired result.  We just
-		# want to be sure the SSH command didn't run into any kind of
-		# weird network or other weird problems.
-		grep -q "Packet corrupt" ${LOG}
-		[ $? -ne 0 ] && break
-	done
-
-	# If the script ran to the end, take a look at the result.
-	if [ ${RC} -eq 0 ]; then
-		grep -q "Connection refused" ${LOG}
-		[ $? -eq 0 ] && RC=1
-	fi
-	return ${RC}
-}
-
-################################################################################
-# SCP put a file to the ESXi server.
-################################################################################
-runESXiSCPPut() {
-	local LCL=${1}
-	local RMT=${2}
-
-	cat > /tmp/j.sh << EOF
-#!/usr/bin/expect -f
-set timeout 3600
-spawn scp -o StrictHostKeyChecking=no ${LCL} ${ESXI_USERNAME}@${ESXI_IP}:${RMT}
-expect "Password:"
-send "${ESXI_PASSWORD}\r"
-expect "~ #"
-EOF
-
-	chmod +x /tmp/j.sh
-	/tmp/j.sh &> ${LOG}
-	local RC=$?
-
-	#rm -f /tmp/j.sh
-
-	return ${RC}
-}
-
-################################################################################
-# SCP get a file from the ESXi server.
-################################################################################
-runESXiSCPGet() {
-	local RMT=${1}
-	local LCL=${2}
-
-	cat > /tmp/j.sh << EOF
-#!/usr/bin/expect -f
-set timeout 3600
-spawn scp -o StrictHostKeyChecking=no ${ESXI_USERNAME}@${ESXI_IP}:${RMT} ${LCL}
-expect "Password:"
-send "${ESXI_PASSWORD}\r"
-expect "~ #"
-EOF
-
-	chmod +x /tmp/j.sh
-	/tmp/j.sh &> ${LOG}
-	local RC=$?
-
-	#rm -f /tmp/j.sh
-
-	return ${RC}
-}
-
-################################################################################
-# Check to see if there is already a copy of our VM on the ESXi server.  If
-# there is, delete it.
-#
-# Input:
-#   N/A.
-#
-# Output:
-#   success - Returns to the caller.
-#   failure - Prints an error message and exits.
-################################################################################
-deleteOldVM() {
-	echo    "  Check for existing VM:"
-
-	echo -n "    Get the list of VMs ... "
-	runESXiCmd "vim-cmd vmsvc/getallvms" &> ${LOG}
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-
-	echo -n "    Look for #1 ${OVA_NAME} ... "
-	cat ${LOG} | awk {'print $4'} | grep -q ${OVA_NAME}/${OVA_NAME}.vmx
-	if [ $? -ne 0 ]; then
-		printResult ${RESULT_PASS} "Not found.\n"
-	else
-		OLD_VMID=`grep ${OVA_NAME}/${OVA_NAME}.vmx ${LOG} | awk {'print $1'}`
-		[ -z "${OLD_VMID}" ] && printResult ${RESULT_FAIL} "Unable to find VMID.\n" && exit 1
-		printResult ${RESULT_WARN} "Found (VMID = ${OLD_VMID}).\n"
-
-		# Check to see if the VM is powered on.  We can't delete it while it's
-		# running.
-		echo -n "      Get power state of VM ${OLD_VMID} ... "
-		runESXiCmd "vim-cmd vmsvc/power.getstate ${OLD_VMID}" &> ${LOG}
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-
-		grep -q "Powered on" ${LOG}
-		if [ $? -eq 0 ]; then
-			echo -n "        VM ${OLD_VMID} is running.  Shutting down ... "
-			runESXiCmd "vim-cmd vmsvc/power.off ${OLD_VMID}" &> ${LOG}
-			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-
-			echo -n "        Get power state of VM ${OLD_VMID} ... "
-			runESXiCmd "vim-cmd vmsvc/power.getstate ${OLD_VMID}" &> ${LOG}
-			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-
-			echo -n "        Verify VM ${OLD_VMID} is powered off ... "
-			grep -q "Powered off" ${LOG}
-			[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-		fi
-
-		echo -n "      Deleting ... "
-		runESXiCmd "vim-cmd vmsvc/destroy ${OLD_VMID}" &> ${LOG}
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-	fi
-
-	echo -n "    Look for #2 ${OVA_NAME} ... "
-	runESXiCmd "ls -ld ${ESXI_PROJECT_DIR}" &> ${LOG}
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
-	grep -q "No such file or directory" ${LOG}
-	if [ $? -eq 0 ]; then
-		 printResult ${RESULT_PASS} "Not found.\n"
-	else
-		 printResult ${RESULT_WARN} "Found.\n"
-
-		echo -n "      Deleting ... "
-		runESXiCmd "rm -rf ${ESXI_PROJECT_DIR}" &> ${LOG}
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-
-		echo -n "      Check again ... "
-		runESXiCmd "ls -ld ${ESXI_PROJECT_DIR}" &> ${LOG}
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
-		grep -q "No such file or directory" ${LOG}
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-	fi
-}
-
 ########################################
+echo "Building the VM image:"
 echo "  Initialization:"
 
 echo -n "    CD to the build directory (${BLD_DIR}) ... "
@@ -221,7 +47,7 @@ echo "Pass."
 
 # Load our Print utilities.
 echo -n "    Loading Print utilities library ... "
-readonly PRINT_UTILS_FILE=$( cd ${BLD_DIR}/.. && echo ${PWD} )/lib/printUtils
+readonly PRINT_UTILS_FILE=${TOP_DIR}/lib/printUtils
 [ ! -f ${PRINT_UTILS_FILE} ] && echo "File not found." && exit 1
 . ${PRINT_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
@@ -231,6 +57,13 @@ echo -n "    Loading build utilities library ... "
 readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 [ ! -f ${BUILD_UTILS_FILE} ] && echo "File not found." && exit 1
 . ${BUILD_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+# Load our ESXi utilities.
+echo -n "    Loading ESXi utilities library ... "
+readonly ESXI_UTILS_FILE=${TOP_DIR}/lib/esxiUtils
+[ ! -f ${ESXI_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${ESXI_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
 # Load our configuration utilities.
@@ -246,34 +79,14 @@ loadConfigFile
 # Check for some required packages.
 installPackage "expect"
 
+# Make sure the ovftool is installed.  We will need it.
+verifyOvftool
+
 # Delete the local copy of the OVA file.  We don't want to accidentally grab it
 # if the build fails.
 echo -n "    Delete local OVA file ... "
 rm -f ${OVA_PATH_NAME_LCL} &> ${LOG}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
-
-# Make sure ovftool is installed on the ESXi server.  It's not normally there.
-# The user has to install it before they can use it.
-echo -n "    Verify ovftool is installed on the ESXi server ... "
-runESXiCmd "${OVFTOOL}" &> ${LOG}
-RC=$?
-if [ ${RC} -eq 0 ]; then
-	# This is the expected string the ovftool will return.  If we receive
-	# this, then we know the command worked.
-	grep -q "Completed with errors" ${LOG}
-	if [ $? -eq 0 ]; then
-		printResult ${RESULT_PASS}
-	else
-		printResult ${RESULT_FAIL} "Unknown result.\n" && exit 1
-	fi
-else
-	if [ ${RC} -eq 1 ]; then
-		printResult ${RESULT_FAIL} "Connection refused.\n"
-	else
-		printResult ${RESULT_FAIL}
-	fi
-	exit 1
-fi
 
 echo ""
 
