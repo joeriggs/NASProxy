@@ -46,7 +46,7 @@ commonInitialization() {
 
 	# Load our Domain Controller library.
 	echo -n "  Loading Domain Controller utilities library ... "
-	DOMAIN_UTILS_FILE=${PROXY_LIB_DIR}/domainController
+	DOMAIN_UTILS_FILE=${PROXY_LIB_DIR}/domainUtils
 	[ ! -f ${DOMAIN_UTILS_FILE} ] && printResult ${RESULT_FAIL} "File not found.\n" && exit 1
 	. ${DOMAIN_UTILS_FILE}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail.\n" && exit 1 ; printResult ${RESULT_PASS}

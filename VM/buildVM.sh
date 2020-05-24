@@ -15,6 +15,7 @@
 
 readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
+readonly RPM_DIR=${TOP_DIR}/RPM
 
 ########################################
 echo "Building the VM image:"
@@ -65,6 +66,7 @@ loadConfigFile
 
 # Check for some required packages.
 installPackage "expect"
+installPackage "yum-utils"
 
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
@@ -192,6 +194,53 @@ if [ $? -ne 0 ]; then
 else
 	printResult ${RESULT_PASS} "Not found.\n"
 fi
+
+echo    "    NAS Proxy RPM file:"
+echo -n "      CD to RPM dir ... "
+pushd ${RPM_DIR} &> /dev/null
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "      Get list of new RPM file(s) ... "
+find . -maxdepth 1 -name "*.rpm" &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "      Count the RPM files ... "
+NUM_RPM_FILES=`wc -l ${LOG} | awk {'print $1'}`
+[ ${NUM_RPM_FILES} -ne 1 ] && printResult ${RESULT_FAIL} "Fail (${NUM_RPM_FILES}).\n" && exit 1 ; printResult ${RESULT_PASS} "Pass (${NUM_RPM_FILES}).\n"
+
+echo -n "      Get RPM file name ... "
+RPM_FILE_NAME=`cat ${LOG}` &> /dev/null
+[ -z "${RPM_FILE_NAME}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${RPM_FILE_NAME}).\n"
+
+echo -n "      Create tar file with RPM file ... "
+TAR_FILE=${PWD}/NASProxy.tar
+tar cf ${TAR_FILE} ${RPM_FILE_NAME} &> ${LOG}
+[ -z "${RPM_FILE_NAME}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${RPM_FILE_NAME}).\n"
+
+echo -n "      CD back to VM dir ... "
+popd &> /dev/null
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "      Remove old tar files from kickstart dir ... "
+rm -f ks/*.tar &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "      Move NASProxy tar file to kickstart directory ... "
+mv -f ${TAR_FILE} ks &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo    "      Dependency (fuse3-libs) ... "
+echo -n "        Download ... "
+sudo yumdownloader --arch=x86_64 fuse3-libs &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "        Create tar file ... "
+tar cf fuse3lib.tar fuse3-libs-*.rpm &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "        Move to kickstart dir ... "
+mv -f fuse3lib.tar ks &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo -n "    Create ${KICKSTART_ISO_NAME} ... "
 mkisofs -V OEMDRV -o ${KICKSTART_ISO_NAME} ks &> ${LOG}
@@ -391,7 +440,7 @@ echo -n "  Use 'ls' to look for ${OVA_NAME} ... "
 runESXiCmd "ls -ld ${OVA_PATH_NAME_RMT}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 grep -q "No such file or directory" ${LOG}
-[ $? -eq 0 ] && printResult ${RESULT_PASS} "Not found.\n" && exit 1 ; printResult ${RESULT_WARN} "Found.\n"
+[ $? -eq 0 ] && printResult ${RESULT_FAIL} "Not found.\n" && exit 1 ; printResult ${RESULT_PASS} "Found.\n"
 
 # Download the OVA file from the ESXi server.
 echo -n "    Download OVA file ... "
