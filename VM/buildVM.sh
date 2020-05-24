@@ -16,19 +16,6 @@
 readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
 
-readonly ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
-readonly ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
-readonly ISO_CSUM_NAME=CHECKSUM
-
-readonly OVA_NAME=NASProxy
-readonly OVA_FILE_NAME=${OVA_NAME}.ova
-readonly OVA_PATH_NAME_RMT=${ESXI_DATASTORE_DIR}/tmp.${OVA_FILE_NAME}
-readonly OVA_PATH_NAME_LCL=${TOP_DIR}/${OVA_FILE_NAME}
-
-readonly ESXI_PROJECT_DIR=${ESXI_DATASTORE_DIR}/${OVA_NAME}
-
-readonly VMX_PATH_LOCL=/tmp/${OVA_NAME}.vmx
-
 ########################################
 echo "Building the VM image:"
 echo "  Initialization:"
@@ -82,6 +69,19 @@ installPackage "expect"
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
 
+readonly ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
+readonly ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
+readonly ISO_CSUM_NAME=CHECKSUM
+
+readonly OVA_NAME=NASProxy
+readonly OVA_FILE_NAME=${OVA_NAME}.ova
+readonly OVA_PATH_NAME_RMT=${ESXI_DATASTORE_DIR}/tmp.${OVA_FILE_NAME}
+readonly OVA_PATH_NAME_LCL=${TOP_DIR}/${OVA_FILE_NAME}
+
+readonly ESXI_PROJECT_DIR=${ESXI_DATASTORE_DIR}/${OVA_NAME}
+
+readonly VMX_PATH_LOCL=/tmp/${OVA_NAME}.vmx
+
 # Delete the local copy of the OVA file.  We don't want to accidentally grab it
 # if the build fails.
 echo -n "    Delete local OVA file ... "
@@ -98,10 +98,10 @@ echo ""
 
 ########################################
 # Upload the OS distribution ISO to ESXi server.
-echo "    OS Distro ISO Processing:"
+echo "  OS Distro ISO Processing:"
 
 # Check to see if the ISO file is already on the server.  Skip ahead if it is.
-echo -n "      Look for ISO file on ESXi server ... "
+echo -n "    Look for ISO file on ESXi server ... "
 runESXiCmd "ls /vmfs/volumes/datastore1/${ISO_FILE_NAME}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 
