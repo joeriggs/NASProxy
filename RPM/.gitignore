@@ -1,0 +1,3 @@
+# The directory where the RPM file is built.
+rpmbuild
+

@@ -6,6 +6,7 @@
 
 readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
+export TOP_DIR
 
 echo "Building the RPM file:"
 
@@ -50,9 +51,15 @@ echo -n "    CD to build dir ... "
 cd ${BLD_DIR} &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
+# Build the RPM right here!
+readonly RPMBUILD_DIR=${BLD_DIR}/rpmbuild
+echo -n "    Set rpmbuild dir to the current dir ... "
+echo "%_topdir ${RPMBUILD_DIR}" > ~/.rpmmacros
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
 # Start with a clean rpmbuild directory.
 echo -n "    Clean out the rpmbuild directory ... "
-rm -rf ~/rpmbuild &> ${LOG}
+rm -rf ${RPMBUILD_DIR} &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Initialize the rpmbuild directory ... "
