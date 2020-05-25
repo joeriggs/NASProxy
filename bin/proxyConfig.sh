@@ -63,6 +63,19 @@ configIP() {
 	read -p "  Gateway    [${PROXY_NETWORK_IP_GATEWAY_NEW}]: "
 	PROXY_NETWORK_IP_GATEWAY_NEW=${REPLY:=$PROXY_NETWORK_IP_GATEWAY_NEW}
 	echo ""
+
+	local NET_IF=ens160
+
+	NETMASK_CIDR=`ipcalc -p 1.1.1.1 ${PROXY_NETWORK_IP_NETMASK_NEW} | sed -n 's/^PREFIX=\(.*\)/\/\1/p'`
+	nmcli con mod ${NET_IF} ipv4.method manual
+
+	nmcli con mod ${NET_IF} ipv4.address ${PROXY_NETWORK_IP_ADDR_NEW}${NETMASK_CIDR}
+	nmcli con mod ${NET_IF} ipv4.gateway ${PROXY_NETWORK_IP_GATEWAY_NEW}
+
+	nmcli con mod ${NET_IF} autoconnect yes
+
+	nmcli con down ${NET_IF}
+	nmcli con up ${NET_IF}
 }
 
 ################################################################################
