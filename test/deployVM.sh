@@ -35,8 +35,6 @@ echo "OVA file is > ${OVA_FILE_NAME} <."
 echo "VM name is > ${VM_NAME} <."
 echo ""
 
-readonly ESXI_PROJECT_DIR=${ESXI_DATASTORE_DIR}/${VM_NAME}
-
 ########################################
 echo "Deploy an OVA file:"
 
@@ -66,16 +64,19 @@ readonly ESXI_UTILS_FILE=${TOP_DIR}/lib/esxiUtils
 . ${ESXI_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Load our configuration utilities.
-echo -n "  Loading config utilities library ... "
-readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
+# Load our build utilities.
+echo -n "  Loading build utilities library ... "
+readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 [ ! -f ${CONFIG_UTILS_FILE} ] && echo "File not found." && exit 1
 . ${CONFIG_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
 # Load our build conf file.
-loadConfigFile
+loadBuildConfigFile
 echo ""
+
+readonly ESXI_PROJECT_DIR=${ESXI_DATASTORE_DIR}/${VM_NAME}
+readonly RMT_OVA_NAME=${ESXI_DATASTORE_DIR}/`basename ${OVA_FILE_NAME}`
 
 # If there is already a VM with ths requested name, stop now.
 echo    "Make sure the VM name is unique:"
@@ -102,8 +103,16 @@ echo ""
 
 ########################################
 echo -n "Upload file ... "
-runESXiSCPPut ${OVA_FILE_NAME} ${ESXI_DATASTORE_DIR}
+runESXiSCPPut ${OVA_FILE_NAME} ${RMT_OVA_NAME}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "  Verify upload ... "
+runESXiCmd "ls -l ${RMT_OVA_NAME}" &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+grep -q "No such file or directory" ${LOG}
+[ $? -eq 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo ""
 
 ########################################
 # Deploy the OVA file.
@@ -141,6 +150,14 @@ while true; do
 	[ $? -eq 0 ] && printResult ${RESULT_PASS} && break
 	sleep 1
 done
+
+echo ""
+
+########################################
+# Delete the OVA file from the ESXi server.
+echo -n "  Delete OVA file from ESXi server ... "
+runESXiCmd "rm -f ${ESXI_DATASTORE_DIR}/${RMT_OVA_NAME}" &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo ""
 

@@ -9,8 +9,7 @@
 # Input:
 #   LOG_FILE    = The name of the utility's log file.
 #
-#   ENC_RUNNING = 1 if we should make sure the encryption software is running.
-#                 0 if we don't care about the encryption software.
+#   VERBOSE     = Display console output.
 #
 # Output:
 #   Success - Returns to the caller.
@@ -19,87 +18,83 @@
 ################################################################################
 commonInitialization() {
 	local LOG_FILE=${1}
-	local ENC_RUNNING=${2}
+	local VERBOSE=${2}
 
 	# PROXY_LIB_DIR can be set by the caller.  If they set it, then we use
 	# their setting.  If they didn't set it, then we make an assumption
 	# about its setting.
-	echo    "  PROXY_LIB_DIR:"
-	echo -n "    Check for preset value ... "
+	[ ${VERBOSE} -eq 1 ] && echo    "  PROXY_LIB_DIR:"
+	[ ${VERBOSE} -eq 1 ] && echo -n "    Check for preset value ... "
 	if [ ! -z "${PROXY_LIB_DIR}" ]; then
-		echo "Pass (${PROXY_LIB_DIR})."
+		[ ${VERBOSE} -eq 1 ] && echo "Pass (${PROXY_LIB_DIR})."
 	else
-		echo "Missing."
+		[ ${VERBOSE} -eq 1 ] && echo "Missing."
 
-		local PROXY_TOP_DIR=$( cd `dirname ${0}`/.. && echo ${PWD} )
-		local PROXY_LIB_DIR=${PROXY_TOP_DIR}/lib
-		echo -n "    Check for \"${PROXY_LIB_DIR}\" ... "
-		[ ! -d ${PROXY_LIB_DIR} ] && echo "Fail." && exit 1 ; echo "Pass."
+		local PROXY_LIB_DIR=/usr/local/lib
+		[ ${VERBOSE} -eq 1 ] && echo -n "    Check for \"${PROXY_LIB_DIR}\" ... "
+		[ ! -d ${PROXY_LIB_DIR} ] && echo "${PROXY_LIB_DIR} missing." && exit 1
+		[ ${VERBOSE} -eq 1 ] && echo "Pass."
 	fi
 
 	# Load our print library.
-	echo -n "  Loading Print utilities library ... "
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading Print utilities library ... "
 	PRINT_UTILS_FILE=${PROXY_LIB_DIR}/printUtils
 	[ ! -f ${PRINT_UTILS_FILE} ] && echo "File not found." && exit 1
 	. ${PRINT_UTILS_FILE}
-	[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
-
-	# Load our Domain Controller library.
-	echo -n "  Loading Domain Controller utilities library ... "
-	DOMAIN_UTILS_FILE=${PROXY_LIB_DIR}/domainUtils
-	[ ! -f ${DOMAIN_UTILS_FILE} ] && printResult ${RESULT_FAIL} "File not found.\n" && exit 1
-	. ${DOMAIN_UTILS_FILE}
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail.\n" && exit 1 ; printResult ${RESULT_PASS}
+	[ $? -ne 0 ] && echo "Fail." && exit 1
+	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
 	# Make sure we're running as admin.
-	echo -n "  Make sure running as admin ... "
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Make sure running as admin ... "
 	USERNAME=`whoami`
-	[ "${USERNAME}" != "admin" ] && printResult ${RESULT_FAIL} "Fail (${USERNAME}).\n" && exit 1
-	printResult ${RESULT_PASS}
+	[ "${USERNAME}" != "admin" ] && printResult ${RESULT_FAIL} "Incorrect username (${USERNAME}).\n" && exit 1
+	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
 	# Load our conf file.
 	# 1. The user can set an environment variable to point to the file. 
 	# 2. Look in the /etc directory for it.
 	# 3. Assume we're in a git repo, and look for the one in the repo.
-	echo    "  PFPROXY_CONF_FILE:"
-	echo -n "    User-provided pointer ... "
+	[ ${VERBOSE} -eq 1 ] && echo    "  PFPROXY_CONF_FILE:"
+	[ ${VERBOSE} -eq 1 ] && echo -n "    User-provided pointer ... "
 	if [ ! -z "${PFPROXY_CONF_FILE}" ]; then
-		echo -n "(${PFPROXY_CONF_FILE}) ... "
-		[ ! -f ${PFPROXY_CONF_FILE} ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+		[ ${VERBOSE} -eq 1 ] && echo -n "(${PFPROXY_CONF_FILE}) ... "
+		[ ! -f ${PFPROXY_CONF_FILE} ] && printResult ${RESULT_FAIL} && exit 1
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 	else
-
-		printResult ${RESULT_WARN} "None.\n"
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "None.\n"
 
 		PFPROXY_CONF_FILE=/etc/NASProxy.conf
-		echo -n "    Production file (${PFPROXY_CONF_FILE}) ... "
+		[ ${VERBOSE} -eq 1 ] && echo -n "    Production file (${PFPROXY_CONF_FILE}) ... "
 		if [ -f "${PFPROXY_CONF_FILE}" ]; then
-			printResult ${RESULT_PASS}
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 		else
 
-			printResult ${RESULT_WARN} "Missing.\n"
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "Missing.\n"
 
 			local PROXY_TOP_DIR=$( cd `dirname ${0}`/.. && echo ${PWD} )
 			PFPROXY_CONF_FILE=${PROXY_TOP_DIR}/test/NASProxy.conf
-			echo -n "    Development file (${PFPROXY_CONF_FILE}) ... "
+			[ ${VERBOSE} -eq 1 ] && echo -n "    Development file (${PFPROXY_CONF_FILE}) ... "
 			if [ -f ${PFPROXY_CONF_FILE} ]; then
-				printResult ${RESULT_PASS}
+				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 			else
-				printResult ${RESULT_WARN} "Missing.\n"
+				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "Missing.\n"
 
-				printResult ${RESULT_FAIL} "    Unable to find global settings file.\n"
+				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL} "    Unable to find global settings file.\n"
 				exit 1
 			fi
 		fi
 	fi
 
-	echo -n "  Loading config from ${PFPROXY_CONF_FILE} ... "
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading config from ${PFPROXY_CONF_FILE} ... "
 	[ ! -f ${PFPROXY_CONF_FILE} ] && printResult ${RESULT_FAIL} "File not found.\n" && exit 1
 	. ${PFPROXY_CONF_FILE}
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail.\n" && exit 1 ; printResult ${RESULT_PASS}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail.\n" && exit 1
+	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
 	# Init our log file.
-	echo -n "  Init log file (${LOG_FILE}) ... "
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Init log file (${LOG_FILE}) ... "
 	rm -f ${LOG_FILE} &> /dev/null
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 }
 

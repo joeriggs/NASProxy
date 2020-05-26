@@ -28,7 +28,6 @@ cp %{_src_drv_dir}/proxy_bridge       ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxy_br
 cp %{_src_bin_dir}/proxyConfig.sh     ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxyConfig.sh
 
 cp %{_src_lib_dir}/commonUtils        ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/commonUtils
-cp %{_src_lib_dir}/domainUtils        ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/domainUtils
 cp %{_src_lib_dir}/printUtils         ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/printUtils
 
 %post

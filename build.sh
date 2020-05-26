@@ -31,7 +31,7 @@ readonly PRINT_UTILS_FILE=${TOP_DIR}/lib/printUtils
 
 # Load our configuration utilities.
 echo -n "  Loading config utilities library ... "
-readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
+readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 [ ! -f ${CONFIG_UTILS_FILE} ] && echo "File not found." && exit 1
 . ${CONFIG_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
@@ -39,7 +39,7 @@ readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
 echo ""
 
 # Load our build conf file.
-loadConfigFile
+loadBuildConfigFile
 
 ########################################
 # Locate the build scripts.

@@ -36,15 +36,8 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 . ${BUILD_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Load our configuration utilities.
-echo -n "  Loading config utilities library ... "
-readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
-[ ! -f ${CONFIG_UTILS_FILE} ] && echo "File not found." && exit 1
-. ${CONFIG_UTILS_FILE}
-[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
-
 # Check for some required packages.
-installPackage "rpmdevtools"
+installYUMPackage "rpmdevtools"
 
 echo ""
 

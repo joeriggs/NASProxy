@@ -54,19 +54,12 @@ readonly ESXI_UTILS_FILE=${TOP_DIR}/lib/esxiUtils
 . ${ESXI_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Load our configuration utilities.
-echo -n "    Loading config utilities library ... "
-readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/configUtils
-[ ! -f ${CONFIG_UTILS_FILE} ] && echo "File not found." && exit 1
-. ${CONFIG_UTILS_FILE}
-[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
-
 # Load our build conf file.
-loadConfigFile
+loadBuildConfigFile
 
 # Check for some required packages.
-installPackage "expect"
-installPackage "yum-utils"
+installYUMPackage "expect"
+installYUMPackage "yum-utils"
 
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
@@ -445,6 +438,20 @@ grep -q "No such file or directory" ${LOG}
 # Download the OVA file from the ESXi server.
 echo -n "    Download OVA file ... "
 runESXiSCPGet ${OVA_PATH_NAME_RMT} ${OVA_PATH_NAME_LCL}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+# Delete the OVA file on the ESXi server.
+echo -n "    Delete remote OVA file ... "
+runESXiCmd "rm -f ${OVA_PATH_NAME_RMT}" &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+# Delete the kickstart file on the ESXi server.
+echo -n "    Delete remote kickstart file ... "
+runESXiCmd "rm -f ${KICKSTART_ISO_PATH}" &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "    Clean up local kickstart directory ... "
+rm -f ks/*.tar &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Delete the VM from the ESXi server.

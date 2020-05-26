@@ -1,33 +1,17 @@
 
 HIGH PRIORITY ==================================================================
 
-- CURRENTLY WORKING ON THE MAIN build.sh SCRIPT THAT WILL BUILD THE WHOLE THING
-  - Store variables in build.conf.
-    - ESXI_IP/USERNAME/PASSWORD from buildISO.sh need to go in there.
-  - Get buildISO.sh working.  It might already work.
-  - Done with that task.
-
 - Generic NASProxy with no encryption on github.
   - User specifies the datastore1.
-  - Create project on github.
-  - Clone the project.
-  - Move all files to the the project.
-  - Strip out all references to the file encryption product.
-  - Strip our all KeySecure references.
+  - Move all files to the project.
   - Test.
     - NFS
     - CIFS
-  - Push
 
 - Generic NASProxy with encryption:
   - EncFS.
 
 - Build the OVA file:
-  - VM contains latest RPMs
-    - Encryption RPM.
-      - Encryption RPM goes in / directory.
-    - NAS Proxy RPM.
-      - Automatically install Proxy RPM while building the VM.
   - Splash screen?
 
 - proxyStart.sh/proxyStop.sh support for CIFS:

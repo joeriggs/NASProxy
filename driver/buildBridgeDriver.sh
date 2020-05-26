@@ -44,10 +44,10 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
 # Check for some required packages.
-installPackage "gcc"
-installPackage "fuse3-devel"
-installPackage "libattr-devel"
-installPackage "openssl-devel"
+installYUMPackage "gcc"
+installYUMPackage "fuse3-devel"
+installYUMPackage "libattr-devel"
+installYUMPackage "openssl-devel"
 
 echo ""
 
