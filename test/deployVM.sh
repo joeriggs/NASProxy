@@ -131,7 +131,7 @@ echo ""
 ########################################
 # Deploy the OVA file.
 echo -n "Deploy to ${VM_NAME} ... "
-runESXiCmd "${OVFTOOL} --acceptAllEulas --name=${VM_NAME} --datastore=`basename ${ESXI_DATASTORE_DIR}` ${ESXI_DATASTORE_DIR}/`basename ${OVA_FILE_NAME}` vi://${ESXI_USERNAME}:${ESXI_PASSWORD}@${ESXI_IP}" &> ${LOG}
+runESXiCmd "${OVFTOOL} --noSSLVerify --acceptAllEulas --name=${VM_NAME} --datastore=`basename ${ESXI_DATASTORE_DIR}` ${ESXI_DATASTORE_DIR}/`basename ${OVA_FILE_NAME}` vi://${ESXI_USERNAME}:${ESXI_PASSWORD}@${ESXI_IP}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo ""
