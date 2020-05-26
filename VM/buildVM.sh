@@ -424,7 +424,7 @@ echo ""
 # Create an OVA file from the VM.  We specify SHA1 so that the OVA file can be
 # loaded by an ESXi 5 server.  ESXi 5 doesn't support SHA256.
 echo -n "  Create OVA file ... "
-runESXiCmd "${OVFTOOL} --overwrite --disableVerification --noSSLVerify --powerOffSource --shaAlgorithm=SHA1 -ds=datastore1 vi://${ESXI_USERNAME}:${ESXI_PASSWORD}@${ESXI_IP}/${OVA_NAME} ${OVA_PATH_NAME_RMT}" &> ${LOG}
+runESXiCmd "${OVFTOOL} --noSSLVerify --overwrite --disableVerification --noSSLVerify --powerOffSource --shaAlgorithm=SHA1 -ds=datastore1 vi://${ESXI_USERNAME}:${ESXI_PASSWORD}@${ESXI_IP}/${OVA_NAME} ${OVA_PATH_NAME_RMT}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 grep -q "Completed successfully" ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}

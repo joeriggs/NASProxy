@@ -92,12 +92,26 @@ unset OLD_VMID
 echo ""
 
 ########################################
-# Verify the file exists.
+# Verify the local copy of the OVA file exists.
 echo -n "Verify ${OVA_FILE_NAME} exists ... "
 [ ! -f ${OVA_FILE_NAME} ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
+
+echo ""
+
+########################################
+# Delete the old OVA file from the ESXi server.
+echo -n "Delete old OVA file from ESXi server ... "
+runESXiCmd "rm -f ${RMT_OVA_NAME}" &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "  Verify file is deleted ... "
+runESXiCmd "ls -l ${RMT_OVA_NAME}" &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+grep -q "No such file or directory" ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo ""
 
@@ -156,7 +170,7 @@ echo ""
 ########################################
 # Delete the OVA file from the ESXi server.
 echo -n "  Delete OVA file from ESXi server ... "
-runESXiCmd "rm -f ${ESXI_DATASTORE_DIR}/${RMT_OVA_NAME}" &> ${LOG}
+runESXiCmd "rm -f ${RMT_OVA_NAME}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo ""
