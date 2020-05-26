@@ -40,6 +40,11 @@ echo ""
 
 # Load our build conf file.
 loadBuildConfigFile
+echo ""
+
+# Initialize our buildUtils library.
+buildUtilsInit
+[ $? -ne 0 ] && exit 1
 
 ########################################
 # Locate the build scripts.

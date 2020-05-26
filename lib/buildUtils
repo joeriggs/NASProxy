@@ -5,6 +5,28 @@
 readonly BUILD_CONF_FILE=${TOP_DIR}/build.conf
 
 ################################################################################
+# Initialize this library.
+#
+# Input:
+#   N/A
+#
+# Output:
+#   0 - success.
+#   1 - failure.
+################################################################################
+buildUtilsInit() {
+	echo -n "Test \"sudo\" access ... "
+	sudo -n ls -l /root &> ${LOG}
+	[ $? -ne 0 ] && echo "Fail.  \"`whoami`\" requires \"sudo\" access." && return 1
+
+	grep -q "sudo: a password is required" ${LOG}
+	[ $? -eq 0 ] && echo "Fail." && return 1
+
+	echo "Pass."
+	return 0
+}
+
+################################################################################
 # Check for the specified CentOS package.  If it's not installed, install it.
 #
 # Input:
@@ -88,6 +110,6 @@ loadBuildConfigFile() {
 	fi
 
 	# If the user changed anything, write it back out.
-	[ ${WRITE_FILE} -eq 1 ] && writeConfigFile
+	[ ${WRITE_FILE} -eq 1 ] && writeBuildConfigFile
 }
 
