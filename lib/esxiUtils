@@ -27,6 +27,9 @@ readonly OVFTOOL=${ESXI_DATASTORE_DIR}/vmware-ovftool/ovftool
 runESXiCmd() {
 	local CMD=${1}
 
+	# This is the return code from this function.
+	local RC=0
+
 	cat > /tmp/j.sh << EOF
 #!/usr/bin/expect -f
 set timeout 3600
@@ -43,22 +46,32 @@ EOF
 	# Be prepared to retry if the command fails the first time.
 	for COUNT in {1..5}; do
 		/tmp/j.sh &> ${LOG}
-		local RC=$?
+		RC=$?
 
 		# Add as many checks as you want right here.  These checks are
 		# looking for proof that the command completed.  We're not
 		# concerned with whether we got the desired result.  We just
 		# want to be sure the SSH command didn't run into any kind of
 		# weird network or other weird problems.
+		grep -q "Connection refused" ${LOG}
+		[ $? -eq 0 ] && RC=1 && break
+
 		grep -q "Packet corrupt" ${LOG}
-		[ $? -ne 0 ] && break
+		[ $? -eq 0 ] && continue
+
+		grep "ssh_dispatch_run_fatal" ${LOG} | grep -q "inavlid format"
+		[ $? -eq 0 ] && continue
+
+		# If the command didn't run into any of the problems described
+		# above, then I guess it was successful.
+		[ ${RC} -eq 0 ] && break
 	done
 
-	# If the script ran to the end, take a look at the result.
-	if [ ${RC} -eq 0 ]; then
-		grep -q "Connection refused" ${LOG}
-		[ $? -eq 0 ] && RC=1
-	fi
+	# Set "unknown error" if we tried 5 unsuccessful times.  Then please
+	# go back and take a look and see why we happened.  Then add the reason
+	# to the list of things that we check for in this function.
+	[ ${COUNT} -ge 5 ] && RC=2
+
 	return ${RC}
 }
 

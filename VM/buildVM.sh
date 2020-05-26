@@ -60,6 +60,7 @@ loadBuildConfigFile
 # Check for some required packages.
 installYUMPackage "expect"
 installYUMPackage "yum-utils"
+installYUMPackage "genisoimage"
 
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
@@ -351,11 +352,8 @@ echo -n "    Upload ... "
 runESXiSCPPut ${VMX_PATH_LOCL} ${ESXI_DATASTORE_DIR}/${OVA_NAME}/${OVA_NAME}.vmx
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo ""
-
-########################################
 # Reload the VM, so it accepts all of our changes.
-echo -n "  Reload the VM ... "
+echo -n "    Reload the VM ... "
 runESXiCmd "vim-cmd vmsvc/reload ${VMID}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
@@ -416,10 +414,13 @@ runESXiSCPPut ${VMX_PATH_LOCL} ${ESXI_DATASTORE_DIR}/${OVA_NAME}/${OVA_NAME}.vmx
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Reload the VM, so it accepts all of our changes.
-echo -n "  Reload the VM ... "
+echo -n "    Reload the VM ... "
 runESXiCmd "vim-cmd vmsvc/reload ${VMID}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
+echo ""
+
+########################################
 # Create an OVA file from the VM.  We specify SHA1 so that the OVA file can be
 # loaded by an ESXi 5 server.  ESXi 5 doesn't support SHA256.
 echo -n "  Create OVA file ... "

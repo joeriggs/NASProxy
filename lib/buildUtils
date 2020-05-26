@@ -41,13 +41,13 @@ installYUMPackage() {
 	local PKG_NAME=${1}
 
 	echo -n "    Check for ${PKG_NAME} ... "
-	sudo yum list installed | grep -q ${PKG_NAME} &> ${LOG}
+	sudo yum list installed ${PKG_NAME} &> ${LOG}
 	if [ $? -eq 0 ]; then
 		printResult ${RESULT_PASS}
 	else
 		printResult ${RESULT_WARN} "Missing.\n"
 
-		echo -n "      Install .. "
+		echo -n "      Install ... "
 		sudo yum install -y ${PKG_NAME} &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 	fi
