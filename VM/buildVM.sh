@@ -223,18 +223,18 @@ echo -n "      Move NASProxy tar file to kickstart directory ... "
 mv -f ${TAR_FILE} ks &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo    "      Dependency (fuse3-libs) ... "
-echo -n "        Download ... "
-sudo yumdownloader --arch=x86_64 fuse3-libs &> ${LOG}
-[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+#echo    "      Dependency (fuse3-libs) ... "
+#echo -n "        Download ... "
+#sudo yumdownloader --arch=x86_64 fuse3-libs &> ${LOG}
+#[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "        Create tar file ... "
-tar cf fuse3lib.tar fuse3-libs-*.rpm &> ${LOG}
-[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+#echo -n "        Create tar file ... "
+#tar cf fuse3lib.tar fuse3-libs-*.rpm &> ${LOG}
+#[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "        Move to kickstart dir ... "
-mv -f fuse3lib.tar ks &> ${LOG}
-[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+#echo -n "        Move to kickstart dir ... "
+#mv -f fuse3lib.tar ks &> ${LOG}
+#[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo -n "    Create ${KICKSTART_ISO_NAME} ... "
 mkisofs -V OEMDRV -o ${KICKSTART_ISO_NAME} ks &> ${LOG}

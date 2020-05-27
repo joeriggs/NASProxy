@@ -33,121 +33,23 @@ touch ${LOG} &> /dev/null
 [ $? -ne 0 ] && echo "Unable to create empty log file."
 
 # Load our common utilities.
-readonly COMMMON_UTILS_FILE=$( cd `dirname ${0}`/.. && echo ${PWD} )/lib/commonUtils
-[ ! -f ${COMMMON_UTILS_FILE} ] && echo "${COMMON_UTILS_FILE} not found." && exit 1
-. ${COMMMON_UTILS_FILE}
+readonly COMMON_UTILS_FILE=/usr/local/lib/commonUtils
+[ ! -f ${COMMON_UTILS_FILE} ] && echo "${COMMON_UTILS_FILE} not found." && exit 1
+. ${COMMON_UTILS_FILE}
 
+# Load our network/IPAddr utilities.
+readonly IP_ADDR_UTILS_FILE=/usr/local/lib/ipUtils
+[ ! -f ${IP_ADDR_UTILS_FILE} ] && echo "${IP_ADDR_UTILS_FILE} not found." && exit 1
+. ${IP_ADDR_UTILS_FILE}
+
+# Load our proxy utilities.
+readonly PROXY_UTILS_FILE=/usr/local/lib/proxyUtils
+[ ! -f ${PROXY_UTILS_FILE} ] && echo "${PROXY_UTILS_FILE} not found." && exit 1
+. ${PROXY_UTILS_FILE}
+
+# Initialize our libraries.
 commonInitialization ${LOG} 0
-
-IP_MODIFIED=0
-
-################################################################################
-# Test the IP address configuration by attempting to ping the specified gateway.
-#
-# Input:
-#   The IP address is configured.
-#
-# Output:
-#   0 - success.
-#   1 - failure.
-################################################################################
-pingGateway() {
-	local RETCODE=0
-
-	echo -n "Pinging ${PROXY_NETWORK_IP_GATEWAY} ... "
-	ping -c 4 ${PROXY_NETWORK_IP_GATEWAY} &> ${LOG}
-	if [ $? -ne 0 ]; then
-	       printResult ${RESULT_FAIL}
-	       RETCODE=1
-	else
-		printResult ${RESULT_PASS}
-	fi
-
-	read -p "Press <ENTER> to continue." ; echo ""
-	return ${RETCODE}
-}
-
-################################################################################
-# Get new IP address information from the user.
-################################################################################
-ipAddrGet() {
-	echo    "IP Configuration:"
-	read -p "  IP Address [${PROXY_NETWORK_IP_ADDR}]: "
-	PROXY_NETWORK_IP_ADDR_NEW=${REPLY:-$PROXY_NETWORK_IP_ADDR}
-	read -p "  Netmask    [${PROXY_NETWORK_IP_NETMASK}]: "
-	PROXY_NETWORK_IP_NETMASK_NEW=${REPLY:=$PROXY_NETWORK_IP_NETMASK}
-	read -p "  Gateway    [${PROXY_NETWORK_IP_GATEWAY}]: "
-	PROXY_NETWORK_IP_GATEWAY_NEW=${REPLY:=$PROXY_NETWORK_IP_GATEWAY}
-	echo ""
-
-	if [ "${PROXY_NETWORK_IP_ADDR}"    != "${PROXY_NETWORK_IP_ADDR_NEW}"    ] || \
-	   [ "${PROXY_NETWORK_IP_NETMASK}" != "${PROXY_NETWORK_IP_NETMASK_NEW}" ] || \
-	   [ "${PROXY_NETWORK_IP_GATEWAY}" != "${PROXY_NETWORK_IP_GATEWAY_NEW}" ]; then
-		IP_MODIFIED=1
-
-		PROXY_NETWORK_IP_ADDR=${PROXY_NETWORK_IP_ADDR_NEW}
-		PROXY_NETWORK_IP_NETMASK=${PROXY_NETWORK_IP_NETMASK_NEW}
-		PROXY_NETWORK_IP_GATEWAY=${PROXY_NETWORK_IP_GATEWAY_NEW}
-
-		unset PROXY_NETWORK_IP_ADDR_NEW PROXY_NETWORK_IP_NETMASK_NEW PROXY_NETWORK_IP_GATEWAY_NEW
-	fi
-
-	[ ${IP_MODIFIED} -eq 1 ] && ipAddrSet && IP_MODIFIED=0
-}
-
-################################################################################
-# Configure the local IP address.
-#
-# Input:
-#   The new environment variables that were specified by the user.
-#
-# Output:
-#   0 - success.
-#   1 - failure.
-################################################################################
-ipAddrSet() {
-	local NET_IF=ens160
-
-	local RETCODE=0
-
-	# Convert the x.x.x.x netmask to a CIDR count (ex. 255.255.255.0 to /24).
-	echo -n "Convert netmask to CIDR ... "
-	NETMASK_CIDR=`ipcalc -p 1.1.1.1 ${PROXY_NETWORK_IP_NETMASK} | sed -n 's/^PREFIX=\(.*\)/\/\1/p'`
-	if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
-
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "Set IP address and netmask ... "
-		nmcli con mod ${NET_IF} ipv4.address ${PROXY_NETWORK_IP_ADDR}${NETMASK_CIDR} &> ${LOG}
-		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
-	fi
-
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "Set gateway ... "
-		nmcli con mod ${NET_IF} ipv4.gateway ${PROXY_NETWORK_IP_GATEWAY} &> ${LOG}
-		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
-	fi
-
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "Set autoconnect ... "
-		nmcli con mod ${NET_IF} autoconnect yes &> ${LOG}
-		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
-	fi
-
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "Down ... "
-		nmcli con down ${NET_IF} &> ${LOG}
-		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
-	fi
-
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "Up ... "
-		nmcli con up ${NET_IF} &> ${LOG}
-		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
-	fi
-
-	read -p "Press <ENTER> to continue." ; echo ""
-	return ${RETCODE}
-}
+proxyInitialization ${LOG} 0
 
 ################################################################################
 # Write a brand new copy of the config file.
@@ -205,12 +107,14 @@ FINISHED=0
 while [ ${FINISHED} -eq 0 ]; do
 	echo "1 - Configure IP address."
 	echo "2 - Ping IP gateway."
+	echo "3 - Create a proxy entry."
 	echo "x - Logout."
-	read -p "Enter option (1, 2, or x): "
+	read -p "Enter option (1, 2, 3, or x): "
 
 	case ${REPLY^} in
 	1) ipAddrGet        ;;
 	2) pingGateway      ;;
+	3) proxyAddEntry    ;;
 	X) FINISHED=1       ;;
 	esac
 done

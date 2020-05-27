@@ -1,0 +1,69 @@
+################################################################################
+# A library of functions/macros that are used to configure proxy entries.
+################################################################################
+
+################################################################################
+# Perform common initialization that is necessary in order to use this library.
+#
+# Input:
+#   LOG_FILE    = The name of the utility's log file.
+#
+#   VERBOSE     = Display console output.
+#
+# Output:
+#   0 - Success.
+#   1 - Failure.
+################################################################################
+proxyInitialization() {
+	local LOG_FILE=${1}
+	local VERBOSE=${2}
+
+	local RETCODE=0
+
+	return ${RETCODE}
+}
+
+################################################################################
+# Collect information from the user in order to create a new proxy entry.
+################################################################################
+proxyAddEntry() {
+	echo ""
+	echo "Add new proxy entry."
+	echo ""
+
+	read -p "  Server IP Address [${SERVER_IP_ADDR}]: "
+	SERVER_IP_ADDR=${REPLY}
+
+	read -p "  Export path [${EXPORT_PATH}]: "
+	EXPORT_PATH=${REPLY}
+
+	echo ""
+
+	##########
+	# Query the NFS Server and check to see if the specified export exists.
+	echo    "Verify server and export:"
+	echo -n "  Ping server ... "
+	ping -c 4 ${SERVER_IP_ADDR} &> ${LOG}
+	if [ $? -ne 0 ]; then
+		printResult ${RESULT_FAIL}
+	else
+		printResult ${RESULT_PASS}
+
+		# Check the export.
+		echo -n "  Check export ... "
+		showmount -e ${SERVER_IP_ADDR} &> ${LOG}
+		if [ $? -ne 0 ]; then
+			printResult ${RESULT_FAIL}
+		else
+			grep -q "^${EXPORT_PATH} " ${LOG}
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL} "Not found.\n"
+			else
+				printResult ${RESULT_PASS}
+			fi
+		fi
+	fi
+
+	printResult ${RESULT_PASS} "Success.\n" ; echo ""
+}
+

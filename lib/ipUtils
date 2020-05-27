@@ -1,0 +1,113 @@
+################################################################################
+# A library of Network Adapter / IP Address utilities.
+################################################################################
+
+IP_MODIFIED=0
+
+################################################################################
+# Test the IP address configuration by attempting to ping the specified gateway.
+#
+# Input:
+#   The IP address is configured.
+#
+# Output:
+#   0 - success.
+#   1 - failure.
+################################################################################
+pingGateway() {
+	local RETCODE=0
+
+	echo -n "Pinging ${PROXY_NETWORK_IP_GATEWAY} ... "
+	ping -c 4 ${PROXY_NETWORK_IP_GATEWAY} &> ${LOG}
+	if [ $? -ne 0 ]; then
+	       printResult ${RESULT_FAIL}
+	       RETCODE=1
+	else
+		printResult ${RESULT_PASS}
+	fi
+
+	read -p "Press <ENTER> to continue." ; echo ""
+	return ${RETCODE}
+}
+
+################################################################################
+# Get new IP address information from the user.
+################################################################################
+ipAddrGet() {
+	echo    "IP Configuration:"
+	read -p "  IP Address [${PROXY_NETWORK_IP_ADDR}]: "
+	PROXY_NETWORK_IP_ADDR_NEW=${REPLY:-$PROXY_NETWORK_IP_ADDR}
+	read -p "  Netmask    [${PROXY_NETWORK_IP_NETMASK}]: "
+	PROXY_NETWORK_IP_NETMASK_NEW=${REPLY:=$PROXY_NETWORK_IP_NETMASK}
+	read -p "  Gateway    [${PROXY_NETWORK_IP_GATEWAY}]: "
+	PROXY_NETWORK_IP_GATEWAY_NEW=${REPLY:=$PROXY_NETWORK_IP_GATEWAY}
+	echo ""
+
+	if [ "${PROXY_NETWORK_IP_ADDR}"    != "${PROXY_NETWORK_IP_ADDR_NEW}"    ] || \
+	   [ "${PROXY_NETWORK_IP_NETMASK}" != "${PROXY_NETWORK_IP_NETMASK_NEW}" ] || \
+	   [ "${PROXY_NETWORK_IP_GATEWAY}" != "${PROXY_NETWORK_IP_GATEWAY_NEW}" ]; then
+		IP_MODIFIED=1
+
+		PROXY_NETWORK_IP_ADDR=${PROXY_NETWORK_IP_ADDR_NEW}
+		PROXY_NETWORK_IP_NETMASK=${PROXY_NETWORK_IP_NETMASK_NEW}
+		PROXY_NETWORK_IP_GATEWAY=${PROXY_NETWORK_IP_GATEWAY_NEW}
+
+		unset PROXY_NETWORK_IP_ADDR_NEW PROXY_NETWORK_IP_NETMASK_NEW PROXY_NETWORK_IP_GATEWAY_NEW
+	fi
+
+	[ ${IP_MODIFIED} -eq 1 ] && ipAddrSet && IP_MODIFIED=0
+}
+
+################################################################################
+# Configure the local IP address.
+#
+# Input:
+#   The new environment variables that were specified by the user.
+#
+# Output:
+#   0 - success.
+#   1 - failure.
+################################################################################
+ipAddrSet() {
+	local NET_IF=ens160
+
+	local RETCODE=0
+
+	# Convert the x.x.x.x netmask to a CIDR count (ex. 255.255.255.0 to /24).
+	echo -n "Convert netmask to CIDR ... "
+	NETMASK_CIDR=`ipcalc -p 1.1.1.1 ${PROXY_NETWORK_IP_NETMASK} | sed -n 's/^PREFIX=\(.*\)/\/\1/p'`
+	if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
+
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "Set IP address and netmask ... "
+		nmcli con mod ${NET_IF} ipv4.address ${PROXY_NETWORK_IP_ADDR}${NETMASK_CIDR} &> ${LOG}
+		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
+	fi
+
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "Set gateway ... "
+		nmcli con mod ${NET_IF} ipv4.gateway ${PROXY_NETWORK_IP_GATEWAY} &> ${LOG}
+		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
+	fi
+
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "Set autoconnect ... "
+		nmcli con mod ${NET_IF} autoconnect yes &> ${LOG}
+		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
+	fi
+
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "Down ... "
+		nmcli con down ${NET_IF} &> ${LOG}
+		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
+	fi
+
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "Up ... "
+		nmcli con up ${NET_IF} &> ${LOG}
+		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
+	fi
+
+	read -p "Press <ENTER> to continue." ; echo ""
+	return ${RETCODE}
+}

@@ -2,7 +2,6 @@
 HIGH PRIORITY ==================================================================
 
 - Generic NASProxy with no encryption on github.
-  - User specifies the datastore1.
   - Move all files to the project.
   - Test.
     - NFS
