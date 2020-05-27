@@ -27,43 +27,156 @@ proxyInitialization() {
 # Collect information from the user in order to create a new proxy entry.
 ################################################################################
 proxyAddEntry() {
+	local RETCODE=0
+
 	echo ""
 	echo "Add new proxy entry."
 	echo ""
 
 	read -p "  Server IP Address [${SERVER_IP_ADDR}]: "
-	SERVER_IP_ADDR=${REPLY}
+	SERVER_IP_ADDR=${REPLY:-${SERVER_IP_ADDR}}
 
 	read -p "  Export path [${EXPORT_PATH}]: "
-	EXPORT_PATH=${REPLY}
+	EXPORT_PATH=${REPLY:-${EXPORT_PATH}}
+
+	read -p "  Local mount point [${LOCAL_MOUNT_POINT}]: "
+	LOCAL_MOUNT_POINT=${REPLY:-${LOCAL_MOUNT_POINT}}
+
+	read -p "  Export directory [${LOCAL_EXPORT_DIR}]: "
+	LOCAL_EXPORT_DIR=${REPLY:-${LOCAL_EXPORT_DIR}}
 
 	echo ""
+	echo "Proxy path:"
+	echo "  ${LOCAL_EXPORT_DIR} -> ${LOCAL_MOUNT_POINT} -> ${SERVER_IP_ADDR}:${EXPORT_PATH}"
+	echo ""
 
-	##########
-	# Query the NFS Server and check to see if the specified export exists.
-	echo    "Verify server and export:"
+	# Ping the NFS Server to make sure we can reach it.
+	echo    "Verify server information:"
 	echo -n "  Ping server ... "
 	ping -c 4 ${SERVER_IP_ADDR} &> ${LOG}
 	if [ $? -ne 0 ]; then
 		printResult ${RESULT_FAIL}
+		RETCODE=1
 	else
 		printResult ${RESULT_PASS}
+	fi
 
-		# Check the export.
-		echo -n "  Check export ... "
-		showmount -e ${SERVER_IP_ADDR} &> ${LOG}
+	# Check the export.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Look for \"${EXPORT_PATH}\" on ${SERVER_IP_ADDR} ... "
+		/usr/sbin/showmount -e ${SERVER_IP_ADDR} &> ${LOG}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
+			RETCODE=1
 		else
 			grep -q "^${EXPORT_PATH} " ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Not found.\n"
+				RETCODE=1
 			else
 				printResult ${RESULT_PASS}
 			fi
 		fi
 	fi
 
-	printResult ${RESULT_PASS} "Success.\n" ; echo ""
+	# Check the requested mount point.  Make sure it doesn't already exist.
+	# Then create it.
+	if [ ${RETCODE} -eq 0 ]; then
+		# Does it already exist?
+		echo -n "  Create mount point ... "
+		if [ -e ${LOCAL_MOUNT_POINT} ]; then
+			printResult ${RESULT_FAIL} "Already exists.\n"
+			RETCODE=1
+		else
+			# Can we create the directory?	
+			sudo mkdir -p ${LOCAL_MOUNT_POINT} &> ${LOG}
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL} "Cannot create.\n"
+				RETCODE=1
+			else
+				sudo chmod 777 ${LOCAL_MOUNT_POINT} &> ${LOG}
+				if [ $? -ne 0 ]; then
+					printResult ${RESULT_FAIL} "Cannot chmod.\n"
+					RETCODE=1
+				else
+					printResult ${RESULT_PASS}
+				fi
+			fi
+		fi
+	fi
+
+	# Mount the specified export onto the newly-created mount point.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Mount ... "
+		sudo mount ${SERVER_IP_ADDR}:${EXPORT_PATH} ${LOCAL_MOUNT_POINT} &> ${LOG}
+		if [ $? -ne 0 ]; then
+			printResult ${RESULT_FAIL}
+			RETCODE=1
+		else
+			printResult ${RESULT_PASS}
+		fi
+	fi
+
+	# Create the export dir.  Fail if it already exists.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Create export dir ... "
+		if [ -e ${LOCAL_EXPORT_DIR} ]; then
+			printResult ${RESULT_FAIL} "Already exists.\n"
+			RETCODE=1
+		else
+			# Create the directory.
+			sudo mkdir -p ${LOCAL_EXPORT_DIR} &> ${LOG}
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL} "Cannot create.\n"
+				RETCODE=1
+			else
+				sudo chmod 777 ${LOCAL_EXPORT_DIR} &> ${LOG}
+				if [ $? -ne 0 ]; then
+					printResult ${RESULT_FAIL} "Cannot chmod.\n"
+					RETCODE=1
+				else
+					printResult ${RESULT_PASS}
+				fi
+			fi
+		fi
+	fi
+
+	# Export the export dir.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Export the export dir ... "
+		sudo chmod 666 /etc/exports &> ${LOG}
+		if [ $? -ne 0 ]; then
+			printResult ${RESULT_FAIL} "Unable to \"chmod\" /etc/exports.\n"
+			RETCODE=1
+		else
+			echo "${LOCAL_EXPORT_DIR} *(rw)" >> /etc/exports
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL} "Unable to add entry to /etc/exports.\n"
+				RETCODE=1
+			else
+				# Export it.
+				sudo /usr/sbin/exportfs -a &> ${LOG}
+				if [ $? -ne 0 ]; then
+					printResult ${RESULT_FAIL} "Unable to export directory.\n"
+					RETCODE=1
+				else
+					printResult ${RESULT_PASS}
+				fi
+			fi
+		fi
+	fi
+
+	##########
+	# Done.
+	echo ""
+	if [ ${RETCODE} -eq 0 ]; then
+		printResult ${RESULT_PASS} "Success.\n"
+	else
+		printResult ${RESULT_FAIL} "Failure.\n"
+	fi
+
+	echo ""
+
+	return ${RETCODE}
 }
 

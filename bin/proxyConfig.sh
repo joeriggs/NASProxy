@@ -75,13 +75,6 @@ readonly PROXY_CONFIG_FILE_VERSION=1.0
 
 readonly BRIDGE_DRIVER_NAME=proxy_bridge
 readonly BRIDGE_DRIVER_PATH=/usr/local/bin/\${BRIDGE_DRIVER_NAME}
-
-readonly PROXY_DATABASE=/etc/NASProxy.db
-
-# Values used when we're modifying our /etc/exports file.
-readonly PERM_EXPORTS=/etc/exports
-readonly TEMP_EXPORTS=/tmp/exports.tmp
-readonly EXPORTS_MSG="# NAS Proxy entries."
 EOF
 
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} ; printResult ${RESULT_PASS}

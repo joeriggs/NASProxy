@@ -100,11 +100,11 @@ loadBuildConfigFile() {
 
 	# ESXi server.
 	if [ -z "${ESXI_IP}" ] || [ -z "${ESXI_USERNAME}" ] || [ -z "${ESXI_PASSWORD}" ]; then
-		read -p "    ESXi server IP Address: [${ESXI_IP}] "
+		read    -p "    ESXi server IP Address: [${ESXI_IP}] "
 		ESXI_IP=${REPLY}
-		read -p "    ESXi server username:   [${ESXI_USERNAME}] "
+		read    -p "    ESXi server username:   [${ESXI_USERNAME}] "
 		ESXI_USERNAME=${REPLY}
-		read -p "    ESXi server password:   [${ESXI_PASSWORD}] "
+		read -s -p "    ESXi server password:   [${ESXI_PASSWORD}] "
 		ESXI_PASSWORD=${REPLY}
 		WRITE_FILE=1
 	fi
