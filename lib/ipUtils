@@ -36,11 +36,11 @@ pingGateway() {
 ipAddrGet() {
 	echo    "IP Configuration:"
 	read -p "  IP Address [${PROXY_NETWORK_IP_ADDR}]: "
-	PROXY_NETWORK_IP_ADDR_NEW=${REPLY:-$PROXY_NETWORK_IP_ADDR}
+	PROXY_NETWORK_IP_ADDR_NEW=${REPLY:-${PROXY_NETWORK_IP_ADDR}}
 	read -p "  Netmask    [${PROXY_NETWORK_IP_NETMASK}]: "
-	PROXY_NETWORK_IP_NETMASK_NEW=${REPLY:=$PROXY_NETWORK_IP_NETMASK}
+	PROXY_NETWORK_IP_NETMASK_NEW=${REPLY:-${PROXY_NETWORK_IP_NETMASK}}
 	read -p "  Gateway    [${PROXY_NETWORK_IP_GATEWAY}]: "
-	PROXY_NETWORK_IP_GATEWAY_NEW=${REPLY:=$PROXY_NETWORK_IP_GATEWAY}
+	PROXY_NETWORK_IP_GATEWAY_NEW=${REPLY:-${PROXY_NETWORK_IP_GATEWAY}}
 	echo ""
 
 	if [ "${PROXY_NETWORK_IP_ADDR}"    != "${PROXY_NETWORK_IP_ADDR_NEW}"    ] || \
@@ -76,7 +76,7 @@ ipAddrSet() {
 	# Convert the x.x.x.x netmask to a CIDR count (ex. 255.255.255.0 to /24).
 	echo -n "Convert netmask to CIDR ... "
 	NETMASK_CIDR=`ipcalc -p 1.1.1.1 ${PROXY_NETWORK_IP_NETMASK} | sed -n 's/^PREFIX=\(.*\)/\/\1/p'`
-	if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
+	if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} "Pass (${NETMASK_CIDR}).\n" ; fi
 
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "Set IP address and netmask ... "
@@ -93,6 +93,12 @@ ipAddrSet() {
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "Set autoconnect ... "
 		nmcli con mod ${NET_IF} autoconnect yes &> ${LOG}
+		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
+	fi
+
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "Set \"static\" ... "
+		sed -i -e "s/BOOTPROTO=.*/BOOTPROTO=static/;" /etc/sysconfig/network-scripts/ifcfg-${NET_IF} &> ${LOG}
 		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
 	fi
 
