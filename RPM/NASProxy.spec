@@ -41,5 +41,8 @@ cp %{_src_lib_dir}/proxyUtils         ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/proxyUti
 # packaging and this list is read in with the -f option
 %defattr(-,root,root)
 
-%attr(0755,root,root) %{_dst_bin_dir} 
+# Set the SUID and SGID bits on the proxy_bridge executable.  This will allow
+# it to run as root/root, even if we're logged in as something like "admin".
+%attr(6755,root,root) %{_dst_bin_dir}/proxy_bridge
+%attr(0755,root,root) %{_dst_bin_dir}/proxyConfig.sh
 %attr(0755,root,root) %{_dst_lib_dir} 

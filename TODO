@@ -2,10 +2,7 @@
 HIGH PRIORITY ==================================================================
 
 - Generic NASProxy with no encryption on github.
-  - Move all files to the project.
-  - Test.
-    - NFS
-    - CIFS
+  - CIFS
 
 - Generic NASProxy with encryption:
   - EncFS.

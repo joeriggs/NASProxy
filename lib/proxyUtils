@@ -61,7 +61,7 @@ proxyAddEntry() {
 		printResult ${RESULT_PASS}
 	fi
 
-	# Check the export.
+	# Check the server's exported directory.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Look for \"${EXPORT_PATH}\" on ${SERVER_IP_ADDR} ... "
 		/usr/sbin/showmount -e ${SERVER_IP_ADDR} &> ${LOG}
@@ -79,16 +79,18 @@ proxyAddEntry() {
 		fi
 	fi
 
-	# Check the requested mount point.  Make sure it doesn't already exist.
-	# Then create it.
+	# Check the requested local mount point.
+	# 1. Make sure it doesn't already exist.
+	# 2. Then create it.
 	if [ ${RETCODE} -eq 0 ]; then
-		# Does it already exist?
 		echo -n "  Create mount point ... "
+
+		# Does it already exist?
 		if [ -e ${LOCAL_MOUNT_POINT} ]; then
 			printResult ${RESULT_FAIL} "Already exists.\n"
 			RETCODE=1
 		else
-			# Can we create the directory?	
+			# Create it.
 			sudo mkdir -p ${LOCAL_MOUNT_POINT} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot create.\n"
@@ -105,7 +107,8 @@ proxyAddEntry() {
 		fi
 	fi
 
-	# Mount the specified export onto the newly-created mount point.
+	# Mount the user-specified remote directory onto the newly-created
+	# mount point.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Mount ... "
 		sudo mount ${SERVER_IP_ADDR}:${EXPORT_PATH} ${LOCAL_MOUNT_POINT} &> ${LOG}
@@ -117,14 +120,18 @@ proxyAddEntry() {
 		fi
 	fi
 
-	# Create the export dir.  Fail if it already exists.
+	# Check the requested local export directory.
+	# 1. Make sure it doesn't already exist.
+	# 2. Then create it.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Create export dir ... "
+
+		# Does it already exist?
 		if [ -e ${LOCAL_EXPORT_DIR} ]; then
 			printResult ${RESULT_FAIL} "Already exists.\n"
 			RETCODE=1
 		else
-			# Create the directory.
+			# Create it.
 			sudo mkdir -p ${LOCAL_EXPORT_DIR} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot create.\n"
@@ -141,27 +148,35 @@ proxyAddEntry() {
 		fi
 	fi
 
-	# Export the export dir.
+	# Insert the NAS Proxy bridge driver (a.k.a. "The Secret Sauce").
 	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "  Export the export dir ... "
-		sudo chmod 666 /etc/exports &> ${LOG}
+		echo -n "  Start bridge ... "
+		PROXY_BRIDGE_DST=${LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${LOCAL_EXPORT_DIR} &> ${LOG}
 		if [ $? -ne 0 ]; then
-			printResult ${RESULT_FAIL} "Unable to \"chmod\" /etc/exports.\n"
+			printResult ${RESULT_FAIL}
 			RETCODE=1
 		else
-			echo "${LOCAL_EXPORT_DIR} *(rw)" >> /etc/exports
+			printResult ${RESULT_PASS}
+		fi
+	fi
+
+	# Export the export dir.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Export ${LOCAL_EXPORT_DIR} via NFSD ... "
+
+		# Is it already exported, for some strange reason?
+		cat /proc/fs/nfs/exports | grep -qP "^${LOCAL_EXPORT_DIR}\t" &> ${LOG}
+		if [ $? -eq 0 ]; then
+			printResult ${RESULT_FAIL} "${LOCAL_EXPORT_DIR} is already exported.\n"
+			RETCODE=1
+		else
+			# Export it.
+			sudo exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR} &> ${LOG}
 			if [ $? -ne 0 ]; then
-				printResult ${RESULT_FAIL} "Unable to add entry to /etc/exports.\n"
+				printResult ${RESULT_FAIL}
 				RETCODE=1
 			else
-				# Export it.
-				sudo /usr/sbin/exportfs -a &> ${LOG}
-				if [ $? -ne 0 ]; then
-					printResult ${RESULT_FAIL} "Unable to export directory.\n"
-					RETCODE=1
-				else
-					printResult ${RESULT_PASS}
-				fi
+				printResult ${RESULT_PASS}
 			fi
 		fi
 	fi

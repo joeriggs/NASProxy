@@ -44,10 +44,10 @@ commonInitialization() {
 	[ $? -ne 0 ] && echo "Fail." && exit 1
 	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
-	# Make sure we're running as admin.
-	[ ${VERBOSE} -eq 1 ] && echo -n "  Make sure running as admin ... "
+	# Make sure we're running as root.
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Make sure running as root ... "
 	USERNAME=`whoami`
-	[ "${USERNAME}" != "admin" ] && printResult ${RESULT_FAIL} "Incorrect username (${USERNAME}).\n" && exit 1
+	[ "${USERNAME}" != "root" ] && printResult ${RESULT_FAIL} "Incorrect username (${USERNAME}).\n" && exit 1
 	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
 	# Load our conf file.
