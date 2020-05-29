@@ -226,7 +226,14 @@ verifyOvftool() {
 		if [ $? -eq 0 ]; then
 			printResult ${RESULT_PASS}
 		else
-			printResult ${RESULT_FAIL} "Unknown result.\n" && exit 1
+			# See if it's not there.
+			grep -q "ovftool: not found" ${LOG}
+			if [ $? -eq 0 ]; then
+				printResult ${RESULT_FAIL} "Command not found.\n"
+			else
+				printResult ${RESULT_FAIL} "Unknown result.\n"
+			fi
+			exit 1
 		fi
 	else
 		if [ ${RC} -eq 1 ]; then

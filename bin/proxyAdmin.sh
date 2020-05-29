@@ -1,6 +1,10 @@
 #!/bin/bash
 
 ################################################################################
+# The script that runs when the user logs in as "admin".
+################################################################################
+
+################################################################################
 # Make sure they have a config file before proceeding.  We need to do this
 # before our boiler plate initialization.  Otherwise, the boiler plate will
 # fail if there isn't a config file on this proxy.

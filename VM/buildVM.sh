@@ -61,6 +61,7 @@ loadBuildConfigFile
 installYUMPackage "expect"
 installYUMPackage "yum-utils"
 installYUMPackage "genisoimage"
+installYUMPackage "wget"
 
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
