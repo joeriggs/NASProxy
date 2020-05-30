@@ -3,8 +3,11 @@
 # Common macros and functions.
 ################################################################################
 
+readonly PERM_NAS_PROXY_CONF_FILE=/etc/NASProxy.conf
+readonly TEMP_NAS_PROXY_CONF_FILE=/etc/NASProxy.conf.tmp
+
 ################################################################################
-# Perform common initialization that a lot of our shell scripts need to do.
+# Perform common initialization.  This includes making a copy of the conf file.
 #
 # Input:
 #   LOG_FILE    = The name of the utility's log file.
@@ -20,21 +23,7 @@ commonInitialization() {
 	local LOG_FILE=${1}
 	local VERBOSE=${2}
 
-	# PROXY_LIB_DIR can be set by the caller.  If they set it, then we use
-	# their setting.  If they didn't set it, then we make an assumption
-	# about its setting.
-	[ ${VERBOSE} -eq 1 ] && echo    "  PROXY_LIB_DIR:"
-	[ ${VERBOSE} -eq 1 ] && echo -n "    Check for preset value ... "
-	if [ ! -z "${PROXY_LIB_DIR}" ]; then
-		[ ${VERBOSE} -eq 1 ] && echo "Pass (${PROXY_LIB_DIR})."
-	else
-		[ ${VERBOSE} -eq 1 ] && echo "Missing."
-
-		local PROXY_LIB_DIR=/usr/local/lib
-		[ ${VERBOSE} -eq 1 ] && echo -n "    Check for \"${PROXY_LIB_DIR}\" ... "
-		[ ! -d ${PROXY_LIB_DIR} ] && echo "${PROXY_LIB_DIR} missing." && exit 1
-		[ ${VERBOSE} -eq 1 ] && echo "Pass."
-	fi
+	local PROXY_LIB_DIR=/usr/local/lib
 
 	# Load our print library.
 	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading Print utilities library ... "
@@ -51,50 +40,171 @@ commonInitialization() {
 	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
 	# Load our conf file.
-	# 1. The user can set an environment variable to point to the file. 
-	# 2. Look in the /etc directory for it.
-	# 3. Assume we're in a git repo, and look for the one in the repo.
-	[ ${VERBOSE} -eq 1 ] && echo    "  PFPROXY_CONF_FILE:"
-	[ ${VERBOSE} -eq 1 ] && echo -n "    User-provided pointer ... "
-	if [ ! -z "${PFPROXY_CONF_FILE}" ]; then
-		[ ${VERBOSE} -eq 1 ] && echo -n "(${PFPROXY_CONF_FILE}) ... "
-		[ ! -f ${PFPROXY_CONF_FILE} ] && printResult ${RESULT_FAIL} && exit 1
-		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
-	else
-		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "None.\n"
-
-		PFPROXY_CONF_FILE=/etc/NASProxy.conf
-		[ ${VERBOSE} -eq 1 ] && echo -n "    Production file (${PFPROXY_CONF_FILE}) ... "
-		if [ -f "${PFPROXY_CONF_FILE}" ]; then
-			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading config from ${PERM_NAS_PROXY_CONF_FILE} ... "
+	if [ -f "${PERM_NAS_PROXY_CONF_FILE}" ]; then
+		. ${PERM_NAS_PROXY_CONF_FILE}
+		if [ $? -ne 0 ]; then
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL} 
 		else
-
-			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "Missing.\n"
-
-			local PROXY_TOP_DIR=$( cd `dirname ${0}`/.. && echo ${PWD} )
-			PFPROXY_CONF_FILE=${PROXY_TOP_DIR}/test/NASProxy.conf
-			[ ${VERBOSE} -eq 1 ] && echo -n "    Development file (${PFPROXY_CONF_FILE}) ... "
-			if [ -f ${PFPROXY_CONF_FILE} ]; then
-				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
-			else
-				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "Missing.\n"
-
-				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL} "    Unable to find global settings file.\n"
-				exit 1
-			fi
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} "Done.\n"
 		fi
-	fi
 
-	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading config from ${PFPROXY_CONF_FILE} ... "
-	[ ! -f ${PFPROXY_CONF_FILE} ] && printResult ${RESULT_FAIL} "File not found.\n" && exit 1
-	. ${PFPROXY_CONF_FILE}
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail.\n" && exit 1
-	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+		# Save a copy in a tmp file.  As we make changes we'll make them
+		# in the tmp file.  Then if the user wants to save their
+		# changes, we just move the tmp file to the perm file.
+		[ ${VERBOSE} -eq 1 ] && echo -n "  Make a copy of the config file ... "
+		cp -f ${PERM_NAS_PROXY_CONF_FILE} ${TEMP_NAS_PROXY_CONF_FILE} &> ${LOG}
+		if [ $? -ne 0 ]; then
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL} 
+		else
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} 
+		fi
+
+	else
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "Missing.\n"
+	fi
 
 	# Init our log file.
 	[ ${VERBOSE} -eq 1 ] && echo -n "  Init log file (${LOG_FILE}) ... "
 	rm -f ${LOG_FILE} &> /dev/null
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+}
+
+################################################################################
+# Allow the user to change the admin password.
+#
+# Input:
+#   N/A
+#
+# Output:
+#   0 - Success.
+#   1 - Failure.
+################################################################################
+changePassword() {
+	local RETCODE=1
+
+	echo ""
+	echo "Change password."
+	echo ""
+
+	read -s -p "  New password: "
+	local NEW_PASSWORD_1=${REPLY}
+
+	echo ""
+
+	read -s -p "  Enter again: "
+	local NEW_PASSWORD_2=${REPLY}
+
+	echo ""
+
+	if [ ! -z "${NEW_PASSWORD_1}" ]; then
+		if [ "${NEW_PASSWORD_1}" == "${NEW_PASSSWORD_2}" ]; then
+			[ ${VERBOSE} -eq 1 ] && echo "Setting admin password ... "
+			echo password | passwd admin --stdin
+			if [ $? -ne 0 ]; then
+				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL}
+			else
+				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+				RETCODE=0
+			fi
+		fi
+	fi
+
+	return ${RETCODE}
+}
+
+################################################################################
+# Get and return a configuration variable.
+#
+# Input:
+#   KEY - The name of the configuration variable.
+#
+# Output:
+#   Returns the variable.  If the variable doesn't exist, it returns an empty
+#   string.
+################################################################################
+getConfigValue() {
+	local KEY=${1}
+
+	local VALUE=""
+
+	grep "^${KEY}=" ${TEMP_NAS_PROXY_CONF_FILE} &> ${LOG}
+	if [ $? -eq 0 ]; then
+		VALUE=`cat ${LOG} | sed -e "s/^${KEY}=//;"`
+	fi
+
+	echo "${VALUE}"
+}
+
+################################################################################
+# Save a new configuration variable.
+#
+# Input:
+#   KEY - The name of the configuration variable.
+#
+#   VALUE - The value to set it to (KEY=VALUE).
+#
+# Output:
+#   0 - Success.  It is saved in the tmp file.
+#   1 - Failure.  Unknown status.
+################################################################################
+setConfigValue() {
+	local KEY="${1}"
+	local VALUE="${2}"
+
+	local RETCODE=1
+	local VERBOSE=0
+
+	[ ${VERBOSE} -eq 1 ] && echo -n "Look for existing KEY=VALUE ... "
+	grep "^${KEY}=" ${TEMP_NAS_PROXY_CONF_FILE} &> ${LOG}
+	if [ $? -ne 0 ]; then
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "Missing.\n"
+
+		[ ${VERBOSE} -eq 1 ] && echo -n "  Create new variable ... "
+		echo "${KEY}=${VALUE}" >> ${TEMP_NAS_PROXY_CONF_FILE}
+		if [ $? -ne 0 ]; then
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL}
+		else
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+		fi
+	else
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+
+		[ ${VERBOSE} -eq 1 ] && echo -n "  Set to new value ... "
+		sed -ie "s/^${KEY}=.*/${KEY}=${VALUE}/;" ${TEMP_NAS_PROXY_CONF_FILE} &> ${LOG}
+		if [ $? -ne 0 ]; then
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL}
+		else
+			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} "Pass (${VALUE}).\n"
+		fi
+	fi
+
+	return ${RETCODE}
+}
+
+################################################################################
+# We've (possibly) been making changes to our configuration data.  Save it.
+#
+# Input:
+#   There is a "tmp" copy of our configuration file that contains all of the
+#   current configuration settings.
+#
+# Output:
+#   Success - The configuration file is updated.
+#
+#   Failure - Unknown.
+################################################################################
+saveConfigFile() {
+	echo "" ; echo -n "Saving configuration ... "
+	cp -f ${TEMP_NAS_PROXY_CONF_FILE}.tmp ${PERM_NAS_PROXY_CONF_FILE} &> ${LOG}
+	if [ $? -ne 0 ]; then
+		printResult ${RESULT_FAIL}
+	else
+		printResult ${RESULT_PASS}
+	fi
+
+	echo ""
+	read -p "Press <ENTER> to continue."
 }
 

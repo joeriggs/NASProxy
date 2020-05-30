@@ -62,7 +62,7 @@ ${DRIVER_BUILD_SCRIPT}
 echo ""
 
 ########################################
-# Build the RPM file that essentially represents this version of PF Proxy.
+# Build the RPM file that essentially represents this version of the NAS Proxy.
 ${RPM_BUILD_SCRIPT}
 [ $? -ne 0 ] && exit 1
 echo ""

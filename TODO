@@ -10,93 +10,36 @@ HIGH PRIORITY ==================================================================
 - Build the OVA file:
   - Splash screen?
 
-- proxyStart.sh/proxyStop.sh support for CIFS:
-  - dirAddCIFS.sh puts the mount into our "database".  Look at dirAddNFS.sh to
-    see how it's done.
-  - proxyStart.sh does the CIFS proxy mounts.
-  - proxyStop.sh does the CIFS proxy unmounts.
-  - dirDelCIFS.sh removes mount from our "database".  Look at dirAddNFS.sh to
-    see how it's done.
+- systemd startup:
+  - start script
+  - shutdown script
 
 - Clean up.
   - The "expect" scripts don't handle failures correctly.  Figure out how to
     make the "expect" scritps recognize failures and return errors.
   - Ask user for timezone information.
-  - Create the pf_key key.  Right now it's just there.  We need to create our
-    own key.
-  - Rename *.sh to just *.  This will allow us to install them into /usr/bin or
-    /usr/local/bin and just run them as regular Linux apps.
-  - Lots of repeated stuff in places like dirAdd???.sh or dirDel???.sh.  Move
-    those things to the commonUtils library.  Or create a separate library with
-    a name like libKS (versus libKylo) and create a set of functions.
-  - Create a "waiting()" function that waits for a migrate or unmigrate to
-    finish, and it does some fun little thing on the screen while it waits.
-  - proxyInstall.sh
-    - proxyInstall.sh intentionally stops smb.  Why?
-    - domainJoin() doesn't detect a lot of failures.
-  - proxyStart.sh
-    - proxyStart.sh intentionally start smb/nmb.  Is that the right thing to do?
-  - proxyStop.sh
-    - Take a look and see what it does with NFS.  Do the same with CIFS.
-  - proxyUninstall.sh
-    - Take a look and see what it does with NFS.  Do the same with CIFS.
+  - Let user change admin password.
+  - Lots of repeated stuff.  Move those things to  commonUtils.
+  - VM/buildVM.sh shows stats while downloading the large ISO files.
 
 - Be able to add/del directories without restarting NFSD or SAMBA.
 
-- Possibly break dirAdd*.sh and dirDel*.sh out into the following:
-  - serverAdd[NFS/CIFS].sh - Adds a server, but not a directory.
-  - dirAdd[NFS/CIFS].sh - Adds a directory to an existing server, but doesn't
-    add the server.
-
-- Combined scripts.
-  - Combine dirAddNFS.sh and dirAddSMB.sh into dirAdd.sh.
-  - Commbine dirDelNFS.sh and dirDelSMB.sh into dirDel.sh.
-  - Break out NFS and SMB pieces into library modules.
-
 - Export as either NFS or CIFS or BOTH.
   - Command line switch to specify N/C/B (NFS/CIFS/BOTH) for client-side.
-  - Working.
-  - Test policy to make sure we can control access.
 
 - Test 4 encrypted directories (2 NFS and 2 CIFS):
-  - Make sure dirAdd.sh updates the database correctly.
-  - Make sure dirDel.sh updates the database correctly.
-  - Run proxyStop.sh and make sure they're shut down.
-  - Run proxyStart.sh and make sure they're restarted.
-
-- Test different users:
-  - jriggs is enc/dec
-  - guest is backup/restore
-  - root is no access
+  - Make sure "Add" updates the database correctly.
+  - Make sure "Del" updates the database correctly.
+  - Shutdown and make sure they're shut down.
+  - Restart and make sure they're restarted.
 
 - TEST!
-  - proxyStart.sh should restart all of the already-configured mounts.
-  - Windows Domain support:
-    - Test Proxy to see if it can do user@pflproxy.gemalto.com user type.
-
 
 LOWER PRIORITY =================================================================
-
-- Can a DC be used as a DNS server, so we can do name resolution from the proxy?
-  - Yes.  That would be fun to add.
 
 - Consider switching to Ubuntu:
   - Newer kernel means better FUSE performance.
   - Need a .DEB file in order to do this.
-
-- Upgrade to latest version of libfuse.
-
-- Create RPM.
-  - Include initialized database (/etc/safenet/config/proxy/db).
-  - Include proxy_bridge driver.
-  - Include the tools directory.
-
-- Admin login menu.
-  - "admin" gets the menu automatically.
-    - Can't Ctrl-C out of it (or Ctrl-D or Ctrl-Z).
-  - Set IP address, netmask, router, and maybe DNS.
-  - Test network (ping router).
-  - Upload RSA key (private key).
 
 - Take care of all of the "TODO" messages in the scripts.
 
@@ -107,10 +50,4 @@ V2 TASKS =======================================================================
 - Cluster (multiple proxies working together (higher performance)).
 
 - Configuration via web GUI.
-  - Investigate how to do configuration via KeySecure and Kylo.
-
-- StS decrypt support.
-  - If we can do this, then we can "migrate" StS files to ProtectFile support.
-  - Need the StS key.
-  - Need to understand StS encryption (AES Tweak).
 

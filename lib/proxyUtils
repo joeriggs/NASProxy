@@ -29,31 +29,36 @@ proxyInitialization() {
 proxyAddEntry() {
 	local RETCODE=0
 
+	local TMP_SERVER_IP_ADDR=`getConfigValue    "SERVER_IP_ADDR"`
+	local TMP_EXPORT_PATH=`getConfigValue       "EXPORT_PATH"`
+	local TMP_LOCAL_MOUNT_POINT=`getConfigValue "LOCAL_MOUNT_POINT"`
+	local TMP_LOCAL_EXPORT_DIR=`getConfigValue  "LOCAL_EXPORT_DIR"`
+
 	echo ""
 	echo "Add new proxy entry."
 	echo ""
 
-	read -p "  Server IP Address [${SERVER_IP_ADDR}]: "
-	SERVER_IP_ADDR=${REPLY:-${SERVER_IP_ADDR}}
+	read -p "  Server IP Address [${TMP_SERVER_IP_ADDR}]: "
+	TMP_SERVER_IP_ADDR=${REPLY:-${TMP_SERVER_IP_ADDR}}
 
-	read -p "  Export path [${EXPORT_PATH}]: "
-	EXPORT_PATH=${REPLY:-${EXPORT_PATH}}
+	read -p "  Export path [${TMP_EXPORT_PATH}]: "
+	TMP_EXPORT_PATH=${REPLY:-${TMP_EXPORT_PATH}}
 
-	read -p "  Local mount point [${LOCAL_MOUNT_POINT}]: "
-	LOCAL_MOUNT_POINT=${REPLY:-${LOCAL_MOUNT_POINT}}
+	read -p "  Local mount point [${TMP_LOCAL_MOUNT_POINT}]: "
+	TMP_LOCAL_MOUNT_POINT=${REPLY:-${TMP_LOCAL_MOUNT_POINT}}
 
-	read -p "  Export directory [${LOCAL_EXPORT_DIR}]: "
-	LOCAL_EXPORT_DIR=${REPLY:-${LOCAL_EXPORT_DIR}}
+	read -p "  Export directory [${TMP_LOCAL_EXPORT_DIR}]: "
+	TMP_LOCAL_EXPORT_DIR=${REPLY:-${TMP_LOCAL_EXPORT_DIR}}
 
 	echo ""
 	echo "Proxy path:"
-	echo "  ${LOCAL_EXPORT_DIR} -> ${LOCAL_MOUNT_POINT} -> ${SERVER_IP_ADDR}:${EXPORT_PATH}"
+	echo "  ${TMP_LOCAL_EXPORT_DIR} -> ${TMP_LOCAL_MOUNT_POINT} -> ${TMP_SERVER_IP_ADDR}:${TMP_EXPORT_PATH}"
 	echo ""
 
 	# Ping the NFS Server to make sure we can reach it.
 	echo    "Verify server information:"
 	echo -n "  Ping server ... "
-	ping -c 4 ${SERVER_IP_ADDR} &> ${LOG}
+	ping -c 4 ${TMP_SERVER_IP_ADDR} &> ${LOG}
 	if [ $? -ne 0 ]; then
 		printResult ${RESULT_FAIL}
 		RETCODE=1
@@ -63,13 +68,13 @@ proxyAddEntry() {
 
 	# Check the server's exported directory.
 	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "  Look for \"${EXPORT_PATH}\" on ${SERVER_IP_ADDR} ... "
-		/usr/sbin/showmount -e ${SERVER_IP_ADDR} &> ${LOG}
+		echo -n "  Look for \"${TMP_EXPORT_PATH}\" on ${TMP_SERVER_IP_ADDR} ... "
+		/usr/sbin/showmount -e ${TMP_SERVER_IP_ADDR} &> ${LOG}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
 		else
-			grep -q "^${EXPORT_PATH} " ${LOG}
+			grep -q "^${TMP_EXPORT_PATH} " ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Not found.\n"
 				RETCODE=1
@@ -86,17 +91,17 @@ proxyAddEntry() {
 		echo -n "  Create mount point ... "
 
 		# Does it already exist?
-		if [ -e ${LOCAL_MOUNT_POINT} ]; then
+		if [ -e ${TMP_LOCAL_MOUNT_POINT} ]; then
 			printResult ${RESULT_FAIL} "Already exists.\n"
 			RETCODE=1
 		else
 			# Create it.
-			sudo mkdir -p ${LOCAL_MOUNT_POINT} &> ${LOG}
+			sudo mkdir -p ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot create.\n"
 				RETCODE=1
 			else
-				sudo chmod 777 ${LOCAL_MOUNT_POINT} &> ${LOG}
+				sudo chmod 777 ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
 				if [ $? -ne 0 ]; then
 					printResult ${RESULT_FAIL} "Cannot chmod.\n"
 					RETCODE=1
@@ -111,7 +116,7 @@ proxyAddEntry() {
 	# mount point.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Mount ... "
-		sudo mount ${SERVER_IP_ADDR}:${EXPORT_PATH} ${LOCAL_MOUNT_POINT} &> ${LOG}
+		sudo mount ${TMP_SERVER_IP_ADDR}:${TMP_EXPORT_PATH} ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
@@ -127,17 +132,17 @@ proxyAddEntry() {
 		echo -n "  Create export dir ... "
 
 		# Does it already exist?
-		if [ -e ${LOCAL_EXPORT_DIR} ]; then
+		if [ -e ${TMP_LOCAL_EXPORT_DIR} ]; then
 			printResult ${RESULT_FAIL} "Already exists.\n"
 			RETCODE=1
 		else
 			# Create it.
-			sudo mkdir -p ${LOCAL_EXPORT_DIR} &> ${LOG}
+			sudo mkdir -p ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot create.\n"
 				RETCODE=1
 			else
-				sudo chmod 777 ${LOCAL_EXPORT_DIR} &> ${LOG}
+				sudo chmod 777 ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
 				if [ $? -ne 0 ]; then
 					printResult ${RESULT_FAIL} "Cannot chmod.\n"
 					RETCODE=1
@@ -151,7 +156,7 @@ proxyAddEntry() {
 	# Insert the NAS Proxy bridge driver (a.k.a. "The Secret Sauce").
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Start bridge ... "
-		PROXY_BRIDGE_DST=${LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${LOCAL_EXPORT_DIR} &> ${LOG}
+		PROXY_BRIDGE_DST=${TMP_LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
@@ -162,16 +167,16 @@ proxyAddEntry() {
 
 	# Export the export dir.
 	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "  Export ${LOCAL_EXPORT_DIR} via NFSD ... "
+		echo -n "  Export ${TMP_LOCAL_EXPORT_DIR} via NFSD ... "
 
 		# Is it already exported, for some strange reason?
-		cat /proc/fs/nfs/exports | grep -qP "^${LOCAL_EXPORT_DIR}\t" &> ${LOG}
+		cat /proc/fs/nfs/exports | grep -qP "^${TMP_LOCAL_EXPORT_DIR}\t" &> ${LOG}
 		if [ $? -eq 0 ]; then
-			printResult ${RESULT_FAIL} "${LOCAL_EXPORT_DIR} is already exported.\n"
+			printResult ${RESULT_FAIL} "${TMP_LOCAL_EXPORT_DIR} is already exported.\n"
 			RETCODE=1
 		else
 			# Export it.
-			sudo exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR} &> ${LOG}
+			sudo exportfs -o rw,fsid=0 *:${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL}
 				RETCODE=1
@@ -186,6 +191,11 @@ proxyAddEntry() {
 	echo ""
 	if [ ${RETCODE} -eq 0 ]; then
 		printResult ${RESULT_PASS} "Success.\n"
+
+		setConfigValue "SERVER_IP_ADDR"    ${TMP_SERVER_IP_ADDR}
+		setConfigValue "EXPORT_PATH"       ${TMP_EXPORT_PATH}
+		setConfigValue "LOCAL_MOUNT_POINT" ${TMP_LOCAL_MOUNT_POINT}
+		setConfigValue "LOCAL_EXPORT_DIR"  ${TMP_LOCAL_EXPORT_DIR}
 	else
 		printResult ${RESULT_FAIL} "Failure.\n"
 	fi
