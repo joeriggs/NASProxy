@@ -177,7 +177,7 @@ setConfigValue() {
 		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
 		[ ${VERBOSE} -eq 1 ] && echo -n "  Set to new value ... "
-		sed -ie "s/^${KEY}=.*/${KEY}=${VALUE}/;" ${TEMP_NAS_PROXY_CONF_FILE} &> ${LOG}
+		sed -ie "s|^${KEY}=.*|${KEY}=${VALUE}|;" ${TEMP_NAS_PROXY_CONF_FILE} &> ${LOG}
 		if [ $? -ne 0 ]; then
 			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL}
 		else
