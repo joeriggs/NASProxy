@@ -97,19 +97,24 @@ changePassword() {
 	local NEW_PASSWORD_2=${REPLY}
 
 	echo ""
+	echo ""
 
 	if [ ! -z "${NEW_PASSWORD_1}" ]; then
-		if [ "${NEW_PASSWORD_1}" == "${NEW_PASSSWORD_2}" ]; then
-			[ ${VERBOSE} -eq 1 ] && echo "Setting admin password ... "
-			echo password | passwd admin --stdin
+		if [ "${NEW_PASSWORD_1}" = "${NEW_PASSWORD_2}" ]; then
+			echo -n "Setting admin password ... "
+			echo ${NEW_PASSWORD_1} | passwd admin --stdin &> ${LOG}
 			if [ $? -ne 0 ]; then
-				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL}
+				printResult ${RESULT_FAIL}
 			else
-				[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+				printResult ${RESULT_PASS}
 				RETCODE=0
 			fi
+		else
+			printResult ${RESULT_FAIL} "Passwords don't match.\n"
 		fi
 	fi
+
+	echo ""
 
 	return ${RETCODE}
 }
@@ -197,7 +202,7 @@ setConfigValue() {
 ################################################################################
 saveConfigFile() {
 	echo "" ; echo -n "Saving configuration ... "
-	cp -f ${TEMP_NAS_PROXY_CONF_FILE}.tmp ${PERM_NAS_PROXY_CONF_FILE} &> ${LOG}
+	cp -f ${TEMP_NAS_PROXY_CONF_FILE} ${PERM_NAS_PROXY_CONF_FILE} &> ${LOG}
 	if [ $? -ne 0 ]; then
 		printResult ${RESULT_FAIL}
 	else
