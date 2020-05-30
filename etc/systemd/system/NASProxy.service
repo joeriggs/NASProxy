@@ -1,0 +1,14 @@
+# Contents of /etc/systemd/system/NASProxy.service
+
+[Unit]
+Description=NAS Proxy
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/usr/local/bin/proxyStart.sh
+
+[Install]
+WantedBy=multi-user.target
+
