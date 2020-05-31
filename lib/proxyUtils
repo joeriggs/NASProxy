@@ -26,6 +26,119 @@ proxyInitialization() {
 }
 
 ################################################################################
+# Bring up the specified export.  This includes the following steps:
+# 1. Make sure the mount directory exists.
+# 2. Mount it.
+# 3. Make sure the export directory exists.
+# 4. Load the bridge driver between the export directory and the mount point.
+# 5. Export the export directory.
+#
+# Input:
+#   NAS_HOST_IP
+#   NAS_HOST_EXPORT
+#   LOCAL_MOUNT_POINT
+#   LOCAL_EXPORT_DIR
+#
+# Output:
+#   0 - Success.
+#   1 - Failure.
+################################################################################
+proxyUtils_LoadExport() {
+	local NAS_HOST_IP=${1}
+	local NAS_HOST_EXPORT=${2}
+	local LOCAL_MOUNT_POINT=${3}
+	local LOCAL_EXPORT_DIR=${4}
+
+	local RETCODE=0
+
+	# Ping the NFS Server to make sure we can reach it.
+	echo    "Verify server information:"
+	echo -n "  Ping server ... "
+	ping -c 4 ${NAS_HOST_IP} &> ${LOG}
+	if [ $? -ne 0 ]; then
+		printResult ${RESULT_FAIL}
+		RETCODE=1
+	else
+		printResult ${RESULT_PASS}
+	fi
+
+	# Check the server's exported directory.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Look for \"${NAS_HOST_EXPORT}\" on ${NAS_HOST_IP} ... "
+		/usr/sbin/showmount -e ${NAS_HOST_IP} &> ${LOG}
+		if [ $? -ne 0 ]; then
+			printResult ${RESULT_FAIL}
+			RETCODE=1
+		else
+
+echo ""
+echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+cat ${LOG}
+echo "==================================================================="
+echo ">^${NAS_HOST_EXPORT} <" ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+echo ""
+
+			grep -q "^${NAS_HOST_EXPORT} " ${LOG}
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL} "Not found.\n"
+				RETCODE=1
+			else
+				printResult ${RESULT_PASS}
+			fi
+		fi
+	fi
+
+	# Mount the user-specified remote directory onto the newly-created
+	# mount point.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Mount ... "
+		sudo mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT} &> ${LOG}
+		if [ $? -ne 0 ]; then
+			printResult ${RESULT_FAIL}
+			RETCODE=1
+		else
+			printResult ${RESULT_PASS}
+		fi
+	fi
+
+	# Insert the NAS Proxy bridge driver (a.k.a. "The Secret Sauce").
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Start bridge ... "
+		PROXY_BRIDGE_DST=${LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${LOCAL_EXPORT_DIR} &> ${LOG}
+		if [ $? -ne 0 ]; then
+			printResult ${RESULT_FAIL}
+			RETCODE=1
+		else
+			printResult ${RESULT_PASS}
+		fi
+	fi
+
+	# Export the export dir.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Export ${LOCAL_EXPORT_DIR} via NFSD ... "
+
+		# Is it already exported, for some strange reason?
+		cat /proc/fs/nfs/exports | grep -qP "^${LOCAL_EXPORT_DIR}\t" &> ${LOG}
+		if [ $? -eq 0 ]; then
+			printResult ${RESULT_FAIL} "${LOCAL_EXPORT_DIR} is already exported.\n"
+			RETCODE=1
+		else
+			# Export it.
+			sudo exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR} &> ${LOG}
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL}
+				RETCODE=1
+			else
+				printResult ${RESULT_PASS}
+			fi
+		fi
+	fi
+
+	return ${RETCODE}
+}
+
+################################################################################
 # Collect information from the user in order to create a new proxy entry.
 #
 # Input:
@@ -64,73 +177,26 @@ proxyAddEntry() {
 	echo "  ${TMP_LOCAL_EXPORT_DIR} -> ${TMP_LOCAL_MOUNT_POINT} -> ${TMP_SERVER_IP_ADDR}:${TMP_EXPORT_PATH}"
 	echo ""
 
-	# Ping the NFS Server to make sure we can reach it.
-	echo    "Verify server information:"
-	echo -n "  Ping server ... "
-	ping -c 4 ${TMP_SERVER_IP_ADDR} &> ${LOG}
-	if [ $? -ne 0 ]; then
-		printResult ${RESULT_FAIL}
+	# Check the requested local mount point.
+	# 1. Make sure it doesn't already exist.
+	# 2. Then create it.
+	echo -n "  Create mount point directory ... "
+	if [ -e ${TMP_LOCAL_MOUNT_POINT} ]; then
+		printResult ${RESULT_FAIL} "Already exists.\n"
 		RETCODE=1
 	else
-		printResult ${RESULT_PASS}
-	fi
-
-	# Check the server's exported directory.
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "  Look for \"${TMP_EXPORT_PATH}\" on ${TMP_SERVER_IP_ADDR} ... "
-		/usr/sbin/showmount -e ${TMP_SERVER_IP_ADDR} &> ${LOG}
+		sudo mkdir -p ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
 		if [ $? -ne 0 ]; then
-			printResult ${RESULT_FAIL}
+			printResult ${RESULT_FAIL} "Cannot create.\n"
 			RETCODE=1
 		else
-			grep -q "^${TMP_EXPORT_PATH} " ${LOG}
+			sudo chmod 777 ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
 			if [ $? -ne 0 ]; then
-				printResult ${RESULT_FAIL} "Not found.\n"
+				printResult ${RESULT_FAIL} "Cannot chmod.\n"
 				RETCODE=1
 			else
 				printResult ${RESULT_PASS}
 			fi
-		fi
-	fi
-
-	# Check the requested local mount point.
-	# 1. Make sure it doesn't already exist.
-	# 2. Then create it.
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "  Create mount point ... "
-
-		# Does it already exist?
-		if [ -e ${TMP_LOCAL_MOUNT_POINT} ]; then
-			printResult ${RESULT_FAIL} "Already exists.\n"
-			RETCODE=1
-		else
-			# Create it.
-			sudo mkdir -p ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
-			if [ $? -ne 0 ]; then
-				printResult ${RESULT_FAIL} "Cannot create.\n"
-				RETCODE=1
-			else
-				sudo chmod 777 ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
-				if [ $? -ne 0 ]; then
-					printResult ${RESULT_FAIL} "Cannot chmod.\n"
-					RETCODE=1
-				else
-					printResult ${RESULT_PASS}
-				fi
-			fi
-		fi
-	fi
-
-	# Mount the user-specified remote directory onto the newly-created
-	# mount point.
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "  Mount ... "
-		sudo mount ${TMP_SERVER_IP_ADDR}:${TMP_EXPORT_PATH} ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
-		if [ $? -ne 0 ]; then
-			printResult ${RESULT_FAIL}
-			RETCODE=1
-		else
-			printResult ${RESULT_PASS}
 		fi
 	fi
 
@@ -139,13 +205,10 @@ proxyAddEntry() {
 	# 2. Then create it.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Create export dir ... "
-
-		# Does it already exist?
 		if [ -e ${TMP_LOCAL_EXPORT_DIR} ]; then
 			printResult ${RESULT_FAIL} "Already exists.\n"
 			RETCODE=1
 		else
-			# Create it.
 			sudo mkdir -p ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot create.\n"
@@ -162,42 +225,13 @@ proxyAddEntry() {
 		fi
 	fi
 
-	# Insert the NAS Proxy bridge driver (a.k.a. "The Secret Sauce").
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "  Start bridge ... "
-		PROXY_BRIDGE_DST=${TMP_LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
-		if [ $? -ne 0 ]; then
-			printResult ${RESULT_FAIL}
-			RETCODE=1
-		else
-			printResult ${RESULT_PASS}
-		fi
-	fi
-
-	# Export the export dir.
-	if [ ${RETCODE} -eq 0 ]; then
-		echo -n "  Export ${TMP_LOCAL_EXPORT_DIR} via NFSD ... "
-
-		# Is it already exported, for some strange reason?
-		cat /proc/fs/nfs/exports | grep -qP "^${TMP_LOCAL_EXPORT_DIR}\t" &> ${LOG}
-		if [ $? -eq 0 ]; then
-			printResult ${RESULT_FAIL} "${TMP_LOCAL_EXPORT_DIR} is already exported.\n"
-			RETCODE=1
-		else
-			# Export it.
-			sudo exportfs -o rw,fsid=0 *:${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
-			if [ $? -ne 0 ]; then
-				printResult ${RESULT_FAIL}
-				RETCODE=1
-			else
-				printResult ${RESULT_PASS}
-			fi
-		fi
-	fi
-
-	##########
-	# Done.
 	echo ""
+
+	if [ ${RETCODE} -eq 0 ]; then
+		proxyUtils_LoadExport ${TMP_SERVER_IP_ADDR} ${TMP_EXPORT_PATH} ${TMP_LOCAL_MOUNT_POINT} ${TMP_LOCAL_EXPORT_DIR}
+		RETCODE=$?
+	fi
+
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Save settings for the future ... "
 		setConfigValue "SERVER_IP_ADDR"    ${TMP_SERVER_IP_ADDR}    ; local R1=$?
@@ -228,6 +262,7 @@ proxyAddEntry() {
 	else
 		printResult ${RESULT_FAIL} "Failure.\n"
 	fi
+	read -p "Press <ENTER> to continue."
 
 	return ${RETCODE}
 }
@@ -260,12 +295,14 @@ proxyReloadEntries() {
 		fi
 
 		# Break the record into the individual fields.
-		local LOCAL_EXPORT_DIR=` echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $1'}`
-		local LOCAL_MOUNT_POINT=`echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $2'}`
-		local SERVER_IP_ADDR=`   echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $3'}`
-		local EXPORT_PATH=`      echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $4'}`
+		local LOCAL_EXPORT_DIR=`  echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $1'}`
+		local LOCAL_MOUNT_POINT=` echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $2'}`
+		local SERVER_IP_ADDR=`    echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $3'}`
+		local SERVER_EXPORT_PATH=`echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $4'}`
 
-		echo " >${LOCAL_EXPORT_DIR}< >${LOCAL_MOUNT_POINT}< >${SERVER_IP_ADDR}< >${EXPORT_PATH}<"
+		echo " >${LOCAL_EXPORT_DIR}< >${LOCAL_MOUNT_POINT}< >${SERVER_IP_ADDR}< >${SERVER_EXPORT_PATH}<"
+
+		proxyUtils_LoadExport ${SERVER_IP_ADDR} ${SERVER_EXPORT_PATH} ${LOCAL_MOUNT_POINT} ${LOCAL_EXPORT_DIR}
 	done
 
 	if [ ${RETCODE} -eq 0 ]; then

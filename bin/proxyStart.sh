@@ -34,7 +34,6 @@ proxyInitialization ${LOG} 1
 ################################################################################
 
 echo "This is proxyStart.sh running."
-echo ""
 
 proxyReloadEntries
 
