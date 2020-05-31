@@ -1,53 +1,56 @@
 
 HIGH PRIORITY ==================================================================
 
-- Generic NASProxy with no encryption on github.
-  - CIFS
+- Remove an exported directory from the NAS Proxy:
+  - Specify the export directory.
+  - Shut it down:
+    - Unexport.
+    - Unmount proxy bridge driver.
+    - Unmount NAS mount.
+    - Remove export directory.
+    - Remove mount directory.
+    - Remove from database (use grep -v).
 
-- Generic NASProxy with encryption:
-  - EncFS.
+- Add encryption:
+  - Hooks into NASProxy project.
+  - Create NASEncryptor project.
+    - EncFS.
 
-- Build the OVA file:
-  - Splash screen?
+- CIFS
+  - Export as either NFS or CIFS or BOTH.
 
-- systemd startup:
-  - start script
-  - shutdown script
+- Splash screen:
 
-- Clean up.
+- Firmware upgrade:
+
+- Debugging information:
+  - Be able to extract data for debugging.
+
+- Clean up:
   - The "expect" scripts don't handle failures correctly.  Figure out how to
     make the "expect" scritps recognize failures and return errors.
   - Ask user for timezone information.
-  - Let user change admin password.
-  - Lots of repeated stuff.  Move those things to  commonUtils.
-  - VM/buildVM.sh shows stats while downloading the large ISO files.
-
-- Be able to add/del directories without restarting NFSD or SAMBA.
-
-- Export as either NFS or CIFS or BOTH.
-  - Command line switch to specify N/C/B (NFS/CIFS/BOTH) for client-side.
-
-- Test 4 encrypted directories (2 NFS and 2 CIFS):
-  - Make sure "Add" updates the database correctly.
-  - Make sure "Del" updates the database correctly.
-  - Shutdown and make sure they're shut down.
-  - Restart and make sure they're restarted.
+  - Ask user for NTP information.
+  - Lots of repeated stuff.  Move those things to commonUtils.
+  - VM/buildVM.sh should show stats while downloading the large ISO files.
 
 - TEST!
 
 LOWER PRIORITY =================================================================
 
-- Consider switching to Ubuntu:
-  - Newer kernel means better FUSE performance.
-  - Need a .DEB file in order to do this.
-
 - Take care of all of the "TODO" messages in the scripts.
 
 - CI/CD (Jenkins).
+
+- systemd startup and shutdown improvements:
+  - shutdown script.  Necessary for doing clean firmware upgrades.
 
 V2 TASKS =======================================================================
 
 - Cluster (multiple proxies working together (higher performance)).
 
 - Configuration via web GUI.
+
+- Configuration language with SSH access.  This allows the user to write scripts
+  that do that configuration.
 
