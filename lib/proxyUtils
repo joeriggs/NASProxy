@@ -2,6 +2,8 @@
 # A library of functions/macros that are used to configure proxy entries.
 ################################################################################
 
+readonly PERM_NAS_PROXY_DIRS_CONF_FILE=/etc/NASProxyDirs.conf
+
 ################################################################################
 # Perform common initialization that is necessary in order to use this library.
 #
@@ -25,6 +27,13 @@ proxyInitialization() {
 
 ################################################################################
 # Collect information from the user in order to create a new proxy entry.
+#
+# Input:
+#   N/A
+#
+# Output:
+#   0 - Success.
+#   1 - Failure.
 ################################################################################
 proxyAddEntry() {
 	local RETCODE=0
@@ -190,18 +199,80 @@ proxyAddEntry() {
 	# Done.
 	echo ""
 	if [ ${RETCODE} -eq 0 ]; then
-		printResult ${RESULT_PASS} "Success.\n"
+		echo -n "  Save settings for the future ... "
+		setConfigValue "SERVER_IP_ADDR"    ${TMP_SERVER_IP_ADDR}    ; local R1=$?
+		setConfigValue "EXPORT_PATH"       ${TMP_EXPORT_PATH}       ; local R2=$?
+		setConfigValue "LOCAL_MOUNT_POINT" ${TMP_LOCAL_MOUNT_POINT} ; local R3=$?
+		setConfigValue "LOCAL_EXPORT_DIR"  ${TMP_LOCAL_EXPORT_DIR}  ; local R4=$?
+		if [ ${R1} -eq 1 ] || [ ${R2} -eq 1 ] || [ ${R3} -eq 1 ] || [ ${R4} -eq 1 ]; then
+			printResult ${RESULT_FAIL}
+			RETCODE=1
+		else
+			printResult ${RESULT_PASS}
 
-		setConfigValue "SERVER_IP_ADDR"    ${TMP_SERVER_IP_ADDR}
-		setConfigValue "EXPORT_PATH"       ${TMP_EXPORT_PATH}
-		setConfigValue "LOCAL_MOUNT_POINT" ${TMP_LOCAL_MOUNT_POINT}
-		setConfigValue "LOCAL_EXPORT_DIR"  ${TMP_LOCAL_EXPORT_DIR}
-	else
-		printResult ${RESULT_FAIL} "Failure.\n"
+			echo -n "  Save record in database ... "
+			echo "${TMP_LOCAL_EXPORT_DIR}|:|:|${TMP_LOCAL_MOUNT_POINT}|:|:|${TMP_SERVER_IP_ADDR}|:|:|${TMP_EXPORT_PATH}" >> ${PERM_NAS_PROXY_DIRS_CONF_FILE}
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL}
+				RETCODE=1
+			else
+				printResult ${RESULT_PASS}
+			fi
+		fi
 	fi
 
 	echo ""
 
+	if [ ${RETCODE} -eq 0 ]; then
+		printResult ${RESULT_PASS} "Success.\n"
+	else
+		printResult ${RESULT_FAIL} "Failure.\n"
+	fi
+
+	return ${RETCODE}
+}
+
+################################################################################
+# Called at boot time.  Reload all of the exports.
+#
+# Input:
+#   N/A
+#
+# Output:
+#   0 - Success.
+#   1 - Failure.
+################################################################################
+proxyReloadEntries() {
+	local RETCODE=0
+
+	echo "Reloading the exported directories:"
+	echo ""
+
+	IFS="
+"
+
+	for RECORD in `cat ${PERM_NAS_PROXY_DIRS_CONF_FILE}`; do
+
+		# Skip comments and blank lines.
+		local FIRST_CHAR=`echo ${RECORD} | head -c 1`
+		if [ "${FIRST_CHAR}" = "#" ] || [ "${FIRST_CHAR}" = " " ]; then
+			continue
+		fi
+
+		# Break the record into the individual fields.
+		local LOCAL_EXPORT_DIR=` echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $1'}`
+		local LOCAL_MOUNT_POINT=`echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $2'}`
+		local SERVER_IP_ADDR=`   echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $3'}`
+		local EXPORT_PATH=`      echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $4'}`
+
+		echo " >${LOCAL_EXPORT_DIR}< >${LOCAL_MOUNT_POINT}< >${SERVER_IP_ADDR}< >${EXPORT_PATH}<"
+	done
+
+	if [ ${RETCODE} -eq 0 ]; then
+		printResult ${RESULT_PASS} "Success.\n"
+	else
+		printResult ${RESULT_FAIL} "Failure.\n"
+	fi
 	return ${RETCODE}
 }
 

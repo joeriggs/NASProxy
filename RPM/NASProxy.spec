@@ -33,6 +33,7 @@ cp %{_src_bin_dir}/proxyStart.sh      ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxySta
 cp %{_src_drv_dir}/proxy_bridge       ${RPM_BUILD_ROOT}/%{_dst_bin_dir}/proxy_bridge
 
 cp %{_src_etc_dir}/NASProxy.conf      ${RPM_BUILD_ROOT}/%{_dst_etc_dir}/NASProxy.conf
+cp %{_src_etc_dir}/NASProxyDirs.conf  ${RPM_BUILD_ROOT}/%{_dst_etc_dir}/NASProxyDirs.conf
 cp %{_src_etc_dir}/systemd/system/NASProxy.service      ${RPM_BUILD_ROOT}/%{_dst_etc_dir}/systemd/system/NASProxy.service
 
 cp %{_src_lib_dir}/commonUtils        ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/commonUtils
@@ -51,5 +52,6 @@ cp %{_src_lib_dir}/proxyUtils         ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/proxyUti
 
 %attr(0755,root,root) %{_dst_bin_dir} 
 %attr(0644,root,root) %{_dst_etc_dir}/NASProxy.conf
+%attr(0644,root,root) %{_dst_etc_dir}/NASProxyDirs.conf
 %attr(0644,root,root) %{_dst_etc_dir}/systemd/system/NASProxy.service
 %attr(0755,root,root) %{_dst_lib_dir} 

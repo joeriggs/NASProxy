@@ -182,6 +182,7 @@ setConfigValue() {
 			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL}
 		else
 			[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} "Pass (${VALUE}).\n"
+			RETCODE=0
 		fi
 	fi
 
