@@ -52,14 +52,16 @@ while [ ${FINISHED} -eq 0 ]; do
 	echo "2 - Configure IP address."
 	echo "3 - Ping IP gateway."
 	echo "4 - Create a proxy entry."
+	echo "5 - Remove a proxy entry."
 	echo "x - Logout."
-	read -p "Enter option (1 - 4, or x): "
+	read -p "Enter option (1 - 5, or x): "
 
 	case ${REPLY^} in
 	1) changePassword   ;;
 	2) ipAddrGet        ;;
 	3) pingGateway      ;;
 	4) proxyAddEntry    ;;
+	5) proxyRemoveEntry ;;
 	X) FINISHED=1       ;;
 	esac
 done

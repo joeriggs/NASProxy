@@ -1,16 +1,6 @@
 
 HIGH PRIORITY ==================================================================
 
-- Remove an exported directory from the NAS Proxy:
-  - Specify the export directory.
-  - Shut it down:
-    - Unexport.
-    - Unmount proxy bridge driver.
-    - Unmount NAS mount.
-    - Remove export directory.
-    - Remove mount directory.
-    - Remove from database (use grep -v).
-
 - Add encryption:
   - Hooks into NASProxy project.
   - Create NASEncryptor project.

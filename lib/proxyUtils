@@ -70,15 +70,6 @@ proxyUtils_LoadExport() {
 			printResult ${RESULT_FAIL}
 			RETCODE=1
 		else
-
-echo ""
-echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-cat ${LOG}
-echo "==================================================================="
-echo ">^${NAS_HOST_EXPORT} <" ${LOG}
-echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-echo ""
-
 			grep -q "^${NAS_HOST_EXPORT} " ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Not found.\n"
@@ -93,7 +84,7 @@ echo ""
 	# mount point.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Mount ... "
-		sudo mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT} &> ${LOG}
+		mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT} &> ${LOG}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
@@ -125,7 +116,7 @@ echo ""
 			RETCODE=1
 		else
 			# Export it.
-			sudo exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR} &> ${LOG}
+			exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL}
 				RETCODE=1
@@ -185,12 +176,12 @@ proxyAddEntry() {
 		printResult ${RESULT_FAIL} "Already exists.\n"
 		RETCODE=1
 	else
-		sudo mkdir -p ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
+		mkdir -p ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL} "Cannot create.\n"
 			RETCODE=1
 		else
-			sudo chmod 777 ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
+			chmod 777 ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot chmod.\n"
 				RETCODE=1
@@ -209,12 +200,12 @@ proxyAddEntry() {
 			printResult ${RESULT_FAIL} "Already exists.\n"
 			RETCODE=1
 		else
-			sudo mkdir -p ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
+			mkdir -p ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot create.\n"
 				RETCODE=1
 			else
-				sudo chmod 777 ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
+				chmod 777 ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
 				if [ $? -ne 0 ]; then
 					printResult ${RESULT_FAIL} "Cannot chmod.\n"
 					RETCODE=1
@@ -253,6 +244,138 @@ proxyAddEntry() {
 				printResult ${RESULT_PASS}
 			fi
 		fi
+	fi
+
+	echo ""
+
+	if [ ${RETCODE} -eq 0 ]; then
+		printResult ${RESULT_PASS} "Success.\n"
+	else
+		printResult ${RESULT_FAIL} "Failure.\n"
+	fi
+	read -p "Press <ENTER> to continue."
+
+	return ${RETCODE}
+}
+
+################################################################################
+# Remove an existing entry from the NAS Proxy.  The user specifies which
+# directory to delete by providing the "local export directory".
+#
+# Input:
+#   N/A
+#
+# Output:
+#   0 - Success.
+#   1 - Failure.
+################################################################################
+proxyRemoveEntry() {
+	local RETCODE=0
+
+	# Get the last "local export dir" that the user created.  It's probably
+	# not the directory that they want to delete, but it beats nothing.
+	local LOCAL_EXPORT_DIR=`getConfigValue "LOCAL_EXPORT_DIR"`
+
+	echo ""
+	echo "Remove existing proxy entry."
+	echo ""
+
+	read -p "  Local export directory [${LOCAL_EXPORT_DIR}]: "
+	LOCAL_EXPORT_DIR=${REPLY:-${LOCAL_EXPORT_DIR}}
+
+	# Locate the record in the database.
+	echo -n "  Locate export directory in the database ... "
+	grep "^${LOCAL_EXPORT_DIR}|:|:|" ${PERM_NAS_PROXY_DIRS_CONF_FILE} &> ${LOG}
+	if [ $? -ne 0 ]; then
+		printResult ${RESULT_WARN} "Not found.\n"
+		RETCODE=1
+	else
+		printResult ${RESULT_PASS}
+	fi
+
+	# Break the record into the individual fields.
+	if [ ${RETCODE} -eq 0 ]; then
+		local RECORD=`tail -1 ${LOG}`
+
+		local LOCAL_MOUNT_POINT=` echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $2'}`
+		local SERVER_IP_ADDR=`    echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $3'}`
+		local SERVER_EXPORT_PATH=`echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $4'}`
+
+		echo ""
+		echo "  Removing proxy path:"
+		echo "    ${LOCAL_EXPORT_DIR} -> ${LOCAL_MOUNT_POINT} -> ${SERVER_IP_ADDR}:${SERVER_EXPORT_PATH}"
+		echo ""
+	fi
+
+	# Clean up the local export directory.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Unexport and remove export dir ... "
+
+		# Make sure the directory exists.
+		if [ ! -e ${LOCAL_EXPORT_DIR} ]; then
+			printResult ${RESULT_FAIL} "Doesn't exist.\n"
+			RETCODE=1
+		else
+			# Unexport.
+			exportfs -u *:${LOCAL_EXPORT_DIR} &> ${LOG}
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL} "Cannot unexport.\n"
+				RETCODE=1
+			else
+				# Unmount the proxy bridge driver from the export dir.
+				fusermount -u ${LOCAL_EXPORT_DIR} &> ${LOG}
+				if [ $? -ne 0 ]; then
+					printResult ${RESULT_FAIL} "Cannot remove proxy bridge.\n"
+					RETCODE=1
+				else
+					# Remove export directory.
+					rmdir ${LOCAL_EXPORT_DIR} &> ${LOG}
+					if [ $? -ne 0 ]; then
+						printResult ${RESULT_FAIL} "Cannot remove export dir.\n"
+						RETCODE=1
+					else
+						printResult ${RESULT_PASS}
+					fi
+				fi
+			fi
+		fi
+	fi
+
+	# Clean up the mount point to the NAS.
+	if [ ${RETCODE} -eq 0 ]; then
+		echo -n "  Remove mount point ... "
+
+		# Make sure the directory exists.
+		if [ ! -e ${LOCAL_MOUNT_POINT} ]; then
+			printResult ${RESULT_FAIL} "Doesn't exist.\n"
+			RETCODE=1
+		else
+			# Unmount.
+			umount -fl ${LOCAL_MOUNT_POINT} &> ${LOG}
+			if [ $? -ne 0 ]; then
+				printResult ${RESULT_FAIL} "Cannot unmount.\n"
+				RETCODE=1
+			else
+				# Remove mount directory.
+				rmdir ${LOCAL_MOUNT_POINT} &> ${LOG}
+				if [ $? -ne 0 ]; then
+					printResult ${RESULT_FAIL}
+					RETCODE=1
+				else
+					printResult ${RESULT_PASS}
+				fi
+			fi
+		fi
+	fi
+
+	echo -n "  Remove record from database ... "
+	local ESC_LOCAL_EXPORT_DIR=`echo ${LOCAL_EXPORT_DIR} | sed 's,/,\\\/,g'`
+	sed -i "/^${ESC_LOCAL_EXPORT_DIR}|:|:|/d" ${PERM_NAS_PROXY_DIRS_CONF_FILE}
+	if [ $? -ne 0 ]; then
+		printResult ${RESULT_FAIL}
+		RETCODE=1
+	else
+		printResult ${RESULT_PASS}
 	fi
 
 	echo ""
