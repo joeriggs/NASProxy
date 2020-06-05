@@ -18,9 +18,42 @@ The NAS Proxy is a Virtual Machine that serves as a proxy in front of a NAS.
 %define _dst_etc_dir /etc
 %define _dst_lib_dir %{_dst_dir}/lib
 
+%define _do_nas_encryptor %{?DO_NAS_ENCRYPTOR:1}
+
 %build
 
 %install
+
+if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]
+then
+	echo "NAS Encryptor: NAS_ENCRYPTOR_DIR = > ${NAS_ENCRYPTOR_DIR} <"
+
+	if [ -d ${NAS_ENCRYPTOR_DIR} ]
+	then
+		echo "NAS Encryptor: Found the NAS Encryptor directory."
+
+		if [ -f ${NAS_ENCRYPTOR_DIR}/build.sh ]
+		then
+			echo "NAS Encryptor: Found the NAS Encryptor build script."
+
+			${NAS_ENCRYPTOR_DIR}/build.sh
+			RC=$?
+			if [ ${RC} -ne 0 ]
+			then
+				echo "NAS Encryptor: NAS Encryptor build failed."
+				exit 1
+			fi
+		else
+			echo "NAS Encryptor: Unable to find the NAS Encryptor build script."
+			exit 1
+		fi
+	else
+		echo "NAS Encryptor: Unable to find the NAS Encryptor directory."
+		exit 1
+	fi
+else
+	echo "NAS Encryptor: Not attempting a NAS Encryptor build."
+fi
 
 mkdir -p ${RPM_BUILD_ROOT}/%{_dst_bin_dir}
 mkdir -p ${RPM_BUILD_ROOT}/%{_dst_etc_dir}

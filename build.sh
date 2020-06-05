@@ -3,12 +3,31 @@
 ################################################################################
 # Build everything from scratch.  The final result is an OVA file that can be
 # deployed onto an ESXi 5 server.
+#
+# We can build one of the following products:
+# 1. NAS Proxy -  This git project contains all of the data required to build a
+#    copy of the NAS Proxy.
+#
+# 2. NAS Encryptor - If you specify the environment variable NAS_ENCRYPTOR_DIR,
+#    then this build tool will build the NAS Encryptor.  It will expect the
+#    NAS_ENCRYPTOR_DIR to point to a directory that is a copy of the
+#    NASEncryptor git project.
 ################################################################################
 
 export TOP_DIR=$( cd `dirname ${0}` && echo ${PWD} )
 readonly DRIVER_BUILD_SCRIPT=${TOP_DIR}/driver/buildBridgeDriver.sh
 readonly RPM_BUILD_SCRIPT=${TOP_DIR}/RPM/buildRPM.sh
 readonly VM_BUILD_SCRIPT=${TOP_DIR}/VM/buildVM.sh
+
+########################################
+# What are we building?
+echo ""
+if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
+	echo "Building the NAS Encryptor."
+else
+	echo "Building the NAS Proxy."
+fi
+echo ""
 
 ########################################
 # Initialize some stuff before we start building.
@@ -63,7 +82,11 @@ echo ""
 
 ########################################
 # Build the RPM file that essentially represents this version of the NAS Proxy.
-${RPM_BUILD_SCRIPT}
+if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
+	NAS_ENCRYPTOR_DIR=${NAS_ENCRYPTOR_DIR} ${RPM_BUILD_SCRIPT}
+else
+	${RPM_BUILD_SCRIPT}
+fi
 [ $? -ne 0 ] && exit 1
 echo ""
 
