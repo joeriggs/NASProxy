@@ -43,47 +43,47 @@ echo ""
 
 ########################################
 # Build the RPM.
-echo "Build the RPM:"
+echo "  Build the RPM:"
 
 # CD to the build directory.
-echo -n "  CD to build dir ... "
+echo -n "    CD to build dir ... "
 cd ${BLD_DIR} &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Delete any existing RPM files.
-echo -n "  Delete old RPM files ... "
+echo -n "    Delete old RPM files ... "
 rm -f *.rpm &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Build the RPM right here!
 readonly RPMBUILD_DIR=${BLD_DIR}/rpmbuild
-echo -n "  Set rpmbuild dir to the current dir ... "
+echo -n "    Set rpmbuild dir to the current dir ... "
 echo "%_topdir ${RPMBUILD_DIR}" > ~/.rpmmacros
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Start with a clean rpmbuild directory.
-echo -n "  Clean out the rpmbuild directory ... "
+echo -n "    Clean out the rpmbuild directory ... "
 rm -rf ${RPMBUILD_DIR} &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Initialize the rpmbuild directory ... "
-echo -n "  Initialize the rpmbuild directory ... "
+echo -n "    Initialize the rpmbuild directory ... "
 rpmdev-setuptree &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Build the NAS Proxy RPM.
-echo -n "  Build the NAS Proxy RPM file ... "
+echo -n "    Build the NAS Proxy RPM file ... "
 rpmbuild -vv -ba NASProxy.spec &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Move the RPM file out of the rpmbuild area.
-echo -n "  Extract RPM file ... "
+echo -n "    Extract RPM file ... "
 mv ${RPMBUILD_DIR}/RPMS/x86_64/*.rpm . &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo ""
 
 ########################################
-printResult ${RESULT_PASS} "`basename ${0}` Success.\n"
+printResult ${RESULT_PASS} "  `basename ${0}` Success.\n"
 exit 0
 

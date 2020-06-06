@@ -1,6 +1,13 @@
 #!/bin/bash
 
 ################################################################################
+# Build the NAS Proxy (or optionally build the NAS Encryptor) OVA file.
+#
+# If the variable NAS_ENCRYPTOR_RPM_FILE is defined, it points to an RPM file
+# that contains the NAS Encryptor files.  If that's the case, then include the
+# file in the OVA file.  So we will have a "NAS Encryptor" instead of a plain
+# old "NAS Proxy".
+#
 # You need to enable SSH on the ESXi server before you run this script.
 #
 # You also need to install ovftool on the ESXi server:
@@ -190,6 +197,10 @@ else
 	printResult ${RESULT_PASS} "Not found.\n"
 fi
 
+##########
+# NAS Proxy RPM file processing.  The RPM file is already built.  We just need
+# to put it in a tar file (due to ISO 9660 filename conventions) and move the
+# tar file to the kickstart directory.
 echo    "    NAS Proxy RPM file:"
 echo -n "      CD to RPM dir ... "
 pushd ${RPM_DIR} &> /dev/null
@@ -208,7 +219,7 @@ RPM_FILE_NAME=`cat ${LOG}` &> /dev/null
 [ -z "${RPM_FILE_NAME}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${RPM_FILE_NAME}).\n"
 
 echo -n "      Create tar file with RPM file ... "
-TAR_FILE_NAME=NASProxy.tar
+TAR_FILE_NAME=nasproxy.tar
 TAR_FILE=${PWD}/${TAR_FILE_NAME}
 tar cf ${TAR_FILE} ${RPM_FILE_NAME} &> ${LOG}
 [ -z "${RPM_FILE_NAME}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${RPM_FILE_NAME}).\n"
@@ -225,6 +236,43 @@ echo -n "      Move NASProxy tar file to kickstart directory ... "
 mv -f ${TAR_FILE} ks &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
+echo ""
+
+##########
+# (Optional) NAS Encryptor RPM file processing.
+# If the variable NAS_ENCRYPTOR_RPM_FILE is defined, include it in the kickstart
+# ISO.
+if [ ! -z "${NAS_ENCRYPTOR_RPM_FILE}" ]; then
+	if [ -f "${NAS_ENCRYPTOR_RPM_FILE}" ]; then
+		echo    "    NAS Encryptor RPM file:"
+		echo -n "      Copy file to local dir ... "
+		readonly NAS_ENCRYPTOR_RPM_FILE_NAME="./`basename ${NAS_ENCRYPTOR_RPM_FILE}`"
+		cp -f ${NAS_ENCRYPTOR_RPM_FILE} ${NAS_ENCRYPTOR_RPM_FILE_NAME} &> /dev/null
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${NAS_ENCRYPTOR_RPM_FILE_NAME}).\n"
+
+		echo -n "      Create tar file with RPM file ... "
+		TAR_FILE_NAME=nasenc.tar
+		TAR_FILE=${PWD}/${TAR_FILE_NAME}
+		tar cf ${TAR_FILE} ${NAS_ENCRYPTOR_RPM_FILE_NAME} &> ${LOG}
+		[ -z "${TAR_FILE}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+		echo -n "      Delete local RPM file ... "
+		rm -f ${NAS_ENCRYPTOR_RPM_FILE_NAME} &> /dev/null
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+		echo -n "      Move NASEncryptor tar file to kickstart directory ... "
+		mv -f ${TAR_FILE} ks &> ${LOG}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+	else
+		printResult ${RESULT_FAIL} "NAS Encryptor file (${NAS_ENCRYPTOR_RPM_FILE}) missing.\n" && exit 1
+	fi
+else
+	echo -n "    NAS Encryptor RPM file processing ... "
+	printResult ${RESULT_WARN} "Skipping.\n"
+fi
+
+##########
+# Create the kickstart ISO file.
 echo -n "    Create ${KICKSTART_ISO_NAME} ... "
 mkisofs -V OEMDRV -o ${KICKSTART_ISO_NAME} ks &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}

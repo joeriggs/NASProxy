@@ -19,11 +19,19 @@ readonly DRIVER_BUILD_SCRIPT=${TOP_DIR}/driver/buildBridgeDriver.sh
 readonly RPM_BUILD_SCRIPT=${TOP_DIR}/RPM/buildRPM.sh
 readonly VM_BUILD_SCRIPT=${TOP_DIR}/VM/buildVM.sh
 
+if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
+	readonly BUILD_NAS_ENCRYPTOR=1
+	readonly NAS_ENCRYPTOR_BUILD_SCRIPT=${NAS_ENCRYPTOR_DIR}/build.sh
+else
+	readonly BUILD_NAS_ENCRYPTOR=0
+fi
+
 ########################################
 # What are we building?
 echo ""
 if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
 	echo "Building the NAS Encryptor."
+	export NAS_ENCRYPTOR_DIR
 else
 	echo "Building the NAS Proxy."
 fi
@@ -71,6 +79,8 @@ echo -n "Locate build scripts ... "
 [ ! -f ${DRIVER_BUILD_SCRIPT} ] && printResult ${RESULT_FAIL} "Can't find ${DRIVER_BUILD_SCRIPT}\n" && exit 1
 [ ! -f ${RPM_BUILD_SCRIPT}    ] && printResult ${RESULT_FAIL} "Can't find ${RPM_BUILD_SCRIPT}\n"    && exit 1
 [ ! -f ${VM_BUILD_SCRIPT}     ] && printResult ${RESULT_FAIL} "Can't find ${VM_BUILD_SCRIPT}\n"     && exit 1
+
+[ ${BUILD_NAS_ENCRYPTOR} -eq 1 ] && [ ! -f ${NAS_ENCRYPTOR_BUILD_SCRIPT} ] && printResult ${RESULT_FAIL} "Can't find ${NAS_ENCRYPTOR_BUILD_SCRIPT}\n" && exit 1
 printResult ${RESULT_PASS}
 echo ""
 
@@ -82,13 +92,18 @@ echo ""
 
 ########################################
 # Build the RPM file that essentially represents this version of the NAS Proxy.
-if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
-	NAS_ENCRYPTOR_DIR=${NAS_ENCRYPTOR_DIR} ${RPM_BUILD_SCRIPT}
-else
-	${RPM_BUILD_SCRIPT}
-fi
+${RPM_BUILD_SCRIPT}
 [ $? -ne 0 ] && exit 1
 echo ""
+
+########################################
+# Build the RPM file that contains the NAS Encryptor files.
+if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
+	NAS_ENCRYPTOR_RPM_FILE=`${NAS_ENCRYPTOR_BUILD_SCRIPT}`
+	[ $? -ne 0 ] && exit 1
+	echo ""
+fi
+export NAS_ENCRYPTOR_RPM_FILE
 
 ########################################
 # Build the VM.  It's the actual VM that is loaded into ESXi.
