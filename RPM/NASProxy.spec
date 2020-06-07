@@ -4,6 +4,8 @@ Release:        1
 Summary:        NAS Proxy
 License:        GPLv3+
 
+Requires: nfs-utils
+
 %description 
 The NAS Proxy is a Virtual Machine that serves as a proxy in front of a NAS.
 
@@ -44,6 +46,15 @@ cp %{_src_lib_dir}/printUtils         ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/printUti
 cp %{_src_lib_dir}/proxyUtils         ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/proxyUtils
 
 %post
+
+# Enable and start nfsd.
+echo "NFS SERVER OPERATIONS:"
+echo "Start nfs-server:"
+systemctl start nfs-server
+echo "Enable nfs-server:"
+systemctl enable nfs-server
+echo "Get nfs-server status:"
+systemctl status nfs-server
 
 %preun
 
