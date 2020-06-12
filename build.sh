@@ -97,13 +97,13 @@ ${RPM_BUILD_SCRIPT}
 echo ""
 
 ########################################
-# Build the RPM file that contains the NAS Encryptor files.
+# Build the package that contains the NAS Encryptor.
 if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
-	NAS_ENCRYPTOR_RPM_FILE=`${NAS_ENCRYPTOR_BUILD_SCRIPT}`
+	NAS_ENCRYPTOR_PKG=`${NAS_ENCRYPTOR_BUILD_SCRIPT}`
 	[ $? -ne 0 ] && exit 1
 	echo ""
 fi
-export NAS_ENCRYPTOR_RPM_FILE
+export NAS_ENCRYPTOR_PKG
 
 ########################################
 # Build the VM.  It's the actual VM that is loaded into ESXi.

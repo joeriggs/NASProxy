@@ -9,6 +9,8 @@ HIGH PRIORITY ==================================================================
 - CIFS
   - Export as either NFS or CIFS or BOTH.
 
+- ./test/deployAWS.sh to deploy NASProxy to Amazon AWS.
+
 - Splash screen:
 
 - Firmware upgrade:
@@ -27,6 +29,8 @@ HIGH PRIORITY ==================================================================
 - TEST!
 
 LOWER PRIORITY =================================================================
+
+- BUG: Need to reboot the VM in order for the correct IP Address to be set.
 
 - Take care of all of the "TODO" messages in the scripts.
 

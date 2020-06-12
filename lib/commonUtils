@@ -3,8 +3,8 @@
 # Common macros and functions.
 ################################################################################
 
-readonly PERM_NAS_PROXY_CONF_FILE=/etc/NASProxy.conf
-readonly TEMP_NAS_PROXY_CONF_FILE=/etc/NASProxy.conf.tmp
+readonly PERM_NAS_PROXY_CONF_FILE=/usr/local/etc/NASProxy.conf
+readonly TEMP_NAS_PROXY_CONF_FILE=/usr/local/etc/NASProxy.conf.tmp
 
 ################################################################################
 # Perform common initialization.  This includes making a copy of the conf file.

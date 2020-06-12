@@ -2,7 +2,7 @@
 # A library of functions/macros that are used to configure proxy entries.
 ################################################################################
 
-readonly PERM_NAS_PROXY_DIRS_CONF_FILE=/etc/NASProxyDirs.conf
+readonly PERM_NAS_PROXY_DIRS_CONF_FILE=/usr/local/etc/NASProxyDirs.conf
 
 ################################################################################
 # Perform common initialization that is necessary in order to use this library.

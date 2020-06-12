@@ -3,10 +3,10 @@
 ################################################################################
 # Build the NAS Proxy (or optionally build the NAS Encryptor) OVA file.
 #
-# If the variable NAS_ENCRYPTOR_RPM_FILE is defined, it points to an RPM file
-# that contains the NAS Encryptor files.  If that's the case, then include the
-# file in the OVA file.  So we will have a "NAS Encryptor" instead of a plain
-# old "NAS Proxy".
+# If the variable NAS_ENCRYPTOR_PKG is defined, it points to a tar file that
+# contains the NAS Encryptor.  If that's the case, then include the file in the
+# OVA file.  Then we will have a "NAS Encryptor" instead of a plain old "NAS
+# Proxy".
 #
 # You need to enable SSH on the ESXi server before you run this script.
 #
@@ -239,37 +239,24 @@ mv -f ${TAR_FILE} ks &> ${LOG}
 echo ""
 
 ##########
-# (Optional) NAS Encryptor RPM file processing.
-# If the variable NAS_ENCRYPTOR_RPM_FILE is defined, include it in the kickstart
-# ISO.
-if [ ! -z "${NAS_ENCRYPTOR_RPM_FILE}" ]; then
-	if [ -f "${NAS_ENCRYPTOR_RPM_FILE}" ]; then
-		echo    "    NAS Encryptor RPM file:"
-		echo -n "      Copy file to local dir ... "
-		readonly NAS_ENCRYPTOR_RPM_FILE_NAME="./`basename ${NAS_ENCRYPTOR_RPM_FILE}`"
-		cp -f ${NAS_ENCRYPTOR_RPM_FILE} ${NAS_ENCRYPTOR_RPM_FILE_NAME} &> /dev/null
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${NAS_ENCRYPTOR_RPM_FILE_NAME}).\n"
-
-		echo -n "      Create tar file with RPM file ... "
-		TAR_FILE_NAME=nasenc.tar
-		TAR_FILE=${PWD}/${TAR_FILE_NAME}
-		tar cf ${TAR_FILE} ${NAS_ENCRYPTOR_RPM_FILE_NAME} &> ${LOG}
-		[ -z "${TAR_FILE}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-
-		echo -n "      Delete local RPM file ... "
-		rm -f ${NAS_ENCRYPTOR_RPM_FILE_NAME} &> /dev/null
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
-
-		echo -n "      Move NASEncryptor tar file to kickstart directory ... "
-		mv -f ${TAR_FILE} ks &> ${LOG}
-		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+# (Optional) NAS Encryptor processing.
+# If the variable NAS_ENCRYPTOR_PKG is defined, include it in the kickstart ISO.
+if [ ! -z "${NAS_ENCRYPTOR_PKG}" ]; then
+	if [ -f "${NAS_ENCRYPTOR_PKG}" ]; then
+		echo    "    NAS Encryptor package:"
+		readonly PKG_NAME="./`basename ${NAS_ENCRYPTOR_PKG}`"
+		echo -n "      Copy ${PKG_NAME} to kickstart directory ... "
+		cp -f ${NAS_ENCRYPTOR_PKG} ks &> /dev/null
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult
 	else
-		printResult ${RESULT_FAIL} "NAS Encryptor file (${NAS_ENCRYPTOR_RPM_FILE}) missing.\n" && exit 1
+		printResult ${RESULT_FAIL} "NAS Encryptor file (${NAS_ENCRYPTOR_PKG}) missing.\n" && exit 1
 	fi
 else
-	echo -n "    NAS Encryptor RPM file processing ... "
+	echo -n "    NAS Encryptor package ... "
 	printResult ${RESULT_WARN} "Skipping.\n"
 fi
+
+echo ""
 
 ##########
 # Create the kickstart ISO file.
