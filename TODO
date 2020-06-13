@@ -9,7 +9,7 @@ HIGH PRIORITY ==================================================================
 - CIFS
   - Export as either NFS or CIFS or BOTH.
 
-- ./test/deployAWS.sh to deploy NASProxy to Amazon AWS.
+- Create ./test/deployAWS.sh to deploy NASProxy to Amazon AWS.
 
 - Splash screen:
 

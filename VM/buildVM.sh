@@ -3,10 +3,10 @@
 ################################################################################
 # Build the NAS Proxy (or optionally build the NAS Encryptor) OVA file.
 #
-# If the variable NAS_ENCRYPTOR_PKG is defined, it points to a tar file that
-# contains the NAS Encryptor.  If that's the case, then include the file in the
-# OVA file.  Then we will have a "NAS Encryptor" instead of a plain old "NAS
-# Proxy".
+# If the variable NAS_ENCRYPTOR_DIR is defined, it points to a directory that
+# contains the NAS Encryptor.  We need to grab the NAS Encryptor package from
+# that directory and include it in the OVA file.  Then we will have a "NAS
+# Encryptor" instead of a plain old "NAS Proxy".
 #
 # You need to enable SSH on the ESXi server before you run this script.
 #
@@ -240,8 +240,10 @@ echo ""
 
 ##########
 # (Optional) NAS Encryptor processing.
-# If the variable NAS_ENCRYPTOR_PKG is defined, include it in the kickstart ISO.
-if [ ! -z "${NAS_ENCRYPTOR_PKG}" ]; then
+# If the variable NAS_ENCRYPTOR_DIR is defined, include its package in the
+# kickstart ISO.
+if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
+	readonly NAS_ENCRYPTOR_PKG=${NAS_ENCRYPTOR_DIR}/PKG/nasenc.tar
 	if [ -f "${NAS_ENCRYPTOR_PKG}" ]; then
 		echo    "    NAS Encryptor package:"
 		readonly PKG_NAME="./`basename ${NAS_ENCRYPTOR_PKG}`"

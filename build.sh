@@ -29,9 +29,8 @@ fi
 ########################################
 # What are we building?
 echo ""
-if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
+if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
 	echo "Building the NAS Encryptor."
-	export NAS_ENCRYPTOR_DIR
 else
 	echo "Building the NAS Proxy."
 fi
@@ -99,15 +98,18 @@ echo ""
 ########################################
 # Build the package that contains the NAS Encryptor.
 if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
-	NAS_ENCRYPTOR_PKG=`${NAS_ENCRYPTOR_BUILD_SCRIPT}`
+	${NAS_ENCRYPTOR_BUILD_SCRIPT}
 	[ $? -ne 0 ] && exit 1
 	echo ""
 fi
-export NAS_ENCRYPTOR_PKG
 
 ########################################
 # Build the VM.  It's the actual VM that is loaded into ESXi.
-${VM_BUILD_SCRIPT}
+if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
+	NAS_ENCRYPTOR_DIR="${NAS_ENCRYPTOR_DIR}" ${VM_BUILD_SCRIPT}
+else
+	${VM_BUILD_SCRIPT}
+fi
 [ $? -ne 0 ] && exit 1
 echo ""
 
