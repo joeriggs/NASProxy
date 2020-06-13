@@ -81,6 +81,11 @@ echo -n "    Extract RPM file ... "
 mv ${RPMBUILD_DIR}/RPMS/x86_64/*.rpm . &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
+# Delete the rpmbuild directory.
+echo -n "    Delete the rpmbuild directory ... "
+rm -rf ${RPMBUILD_DIR} &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
 echo ""
 
 ########################################
