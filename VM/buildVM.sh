@@ -24,6 +24,8 @@ readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
 readonly RPM_DIR=${TOP_DIR}/RPM
 
+readonly DO_CENTOS_7=1
+
 ########################################
 echo "Building the VM image:"
 echo "  Initialization:"
@@ -73,9 +75,16 @@ installYUMPackage "wget"
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
 
-readonly ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
-readonly ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
-readonly ISO_CSUM_NAME=CHECKSUM
+if [ ${DO_CENTOS_7} -eq 1 ]; then
+	ISO_REPO_SITE=http://mirror.es.its.nyu.edu/centos/7.8.2003/isos/x86_64
+	ISO_FILE_NAME=CentOS-7-x86_64-Minimal-2003.iso
+	ISO_CSUM_NAME=sha256sum.txt
+else
+	ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
+	ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
+	ISO_CSUM_NAME=CHECKSUM
+fi
+readonly ISO_REPO_SITE ISO_FILE_NAME ISO_CSUM_NAME
 
 readonly OVA_NAME=NASProxy
 readonly OVA_FILE_NAME=${OVA_NAME}.ova
@@ -148,7 +157,11 @@ else
 	echo "Pass (${CALC_CHECKSUM})."
 
 	echo -n "    Locate checksum in checksum file ... "
-	REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | grep SHA256 | awk {'print $4'}`
+	if [ ${DO_CENTOS_7} -eq 1 ]; then
+		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | awk {'print $1'}`
+	else
+		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | grep SHA256 | awk {'print $4'}`
+	fi
 	[ -z "${REAL_CHECKSUM}" ] && printResult ${RESULT_FAIL} && exit 1
 	echo "Pass (${REAL_CHECKSUM})."
 

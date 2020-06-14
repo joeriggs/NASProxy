@@ -1,6 +1,7 @@
 # This is the ISO file and checksum file for the CentOS 8.1 ISO image.
 *.iso
 CHECKSUM
+sha256sum.txt
 
 # Files that are installed onto the Proxy OVA.
 *.rpm
