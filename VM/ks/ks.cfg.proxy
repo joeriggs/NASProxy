@@ -1,0 +1,137 @@
+
+%post
+
+# Keep output in a log file.
+readonly LOG=/root/NASProxy-install.log
+rm -f ${LOG}
+echo `date` > ${LOG}
+
+# Which OS distribution is this?
+echo ""                                              &>> ${LOG}
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "FIGURE OUT THE OS VERSION."                    &>> ${LOG}
+grep -q "Linux release 7" /etc/redhat-release        &>> ${LOG}
+if [ $? -eq 0 ]; then
+	echo "THIS IS RHEL 7."                       &>> ${LOG}
+	RHEL_MAJOR_VERSION=7
+else
+	echo "ASSUMING THIS IS RHEL 8."              &>> ${LOG}
+	RHEL_MAJOR_VERSION=8
+fi
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+
+# Use the OS ISO image as a local repo.  That will allow us to install
+# packages from it.
+echo ""                                              &>> ${LOG}
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "GET RID OF EXISTING REPO FILES."               &>> ${LOG}
+mv /etc/yum.repos.d/* /tmp                           &>> ${LOG}
+echo "RESULT IS $?"                                  &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "CREATE YUM REPO FILE"                          &>> ${LOG}
+rm -f /etc/yum.repos.d/*                             &>> ${LOG}
+echo "[InstallMedia]"                         > /etc/yum.repos.d/media.repo
+echo "name=media"                            >> /etc/yum.repos.d/media.repo
+echo "mediaid=None"                          >> /etc/yum.repos.d/media.repo
+echo "metadata_expire=-1"                    >> /etc/yum.repos.d/media.repo
+echo "gpgcheck=0"                            >> /etc/yum.repos.d/media.repo
+echo "cost=500"                              >> /etc/yum.repos.d/media.repo
+echo "enabled=1"                             >> /etc/yum.repos.d/media.repo
+if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+	echo "baseurl=file:///mnt/os"        >> /etc/yum.repos.d/media.repo
+else
+	echo "baseurl=file:///mnt/os/BaseOS" >> /etc/yum.repos.d/media.repo
+fi
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "REPO DIRECTORY:"                               &>> ${LOG}
+ls -l /etc/yum.repos.d                               &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "REPO FILE CONTENTS:"                           &>> ${LOG}
+cat /etc/yum.repos.d/media.repo                      &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "REPOLIST OUTPUT:"                              &>> ${LOG}
+yum repolist                                         &>> ${LOG}
+echo "RESULT IS $?"                                  &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+
+# Create the "admin" user account.  Same UID/GID as "root".
+useradd -s /usr/local/bin/proxyAdmin.sh -o -u 0 -g 0 admin
+echo password | passwd admin --stdin
+echo "admin	ALL=(ALL)	NOPASSWD: ALL" > /etc/sudoers.d/admin
+
+# TODO - For production builds, delete the "root" account.  Leave it intact for
+#        development builds.
+
+# Mount the OS and kickstart ISOs.  We need to access some of the stuff on
+# them.
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "Mount ISO files:"                              &>> ${LOG}
+mkdir -p /mnt/os /mnt/ks                             &>> ${LOG}
+echo "Mount the CentOS ISO:"                         &>> ${LOG}
+mount /dev/sr0 /mnt/os                               &>> ${LOG}
+echo "Mount the kickstart ISO:"                      &>> ${LOG}
+mount /dev/sr1 /mnt/ks                               &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+
+# Turn off the firewall.
+#
+# TODO - This is too aggressive.  A better solution is to enable ports that we
+#        want to use, and leave everything else locked up.
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "FIREWALL OPERATIONS:"                          &>> ${LOG}
+echo "Stop firewalld:"                               &>> ${LOG}
+systemctl stop firewalld                             &>> ${LOG}
+echo "Disable firewalld:"                            &>> ${LOG}
+systemctl disable firewalld                          &>> ${LOG}
+echo "Get firewalld status:"                         &>> ${LOG}
+systemctl status firewalld                           &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+
+# Un-tar the tar file that contains the NAS Proxy, install it, and enable it to
+# run at startup.
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "Install NASProxy."                             &>> ${LOG}
+cd /                                                 &>> ${LOG}
+RPMFILE=`tar -xvf /mnt/ks/nasproxy.tar`
+echo "UNTAR RESULT $? : RPMFILE ${RPMFILE}"          &>> ${LOG}
+yum install -y ${RPMFILE}                            &>> ${LOG}
+echo "DNF RESULT $?"                                 &>> ${LOG}
+systemctl enable NASProxy                            &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+
+# Un-tar the (optional) tar file that contains the NAS Encryptor and install it.
+if [ -f /mnt/ks/nasenc.tar ]; then
+	echo ">>>>>>>>>>>>>>>>>>>>>>>>"              &>> ${LOG}
+	cd /                                         &>> ${LOG}
+	echo "Install NASEncryptor."                 &>> ${LOG}
+	tar -xvf /mnt/ks/nasenc.tar                  &>> ${LOG}
+	echo "UNTAR RESULT $?"                       &>> ${LOG}
+	./installNASEncryptor.sh                     &>> ${LOG}
+	echo "INSTALL SCRIPT RESULT $?"              &>> ${LOG}
+	echo "<<<<<<<<<<<<<<<<<<<<<<<<"              &>> ${LOG}
+	echo ""                                      &>> ${LOG}
+fi
+
+# TODO - Get rid of the media.repo file and re-issue "yum repolist" and
+#        "yum clean all" in order to clean up.  That way the user can't
+#        install or remove any packages from the NAS Proxy.
+
+# TODO - Remove packages that we don't want.  For example:
+#        1. man pages.
+
+%end
+
+shutdown
+

@@ -5,7 +5,8 @@
 readonly BUILD_CONF_FILE=${TOP_DIR}/build.conf
 
 ################################################################################
-# Initialize this library.
+# Initialize this library.  Anything that needs to be done for every build can
+# be done here.
 #
 # Input:
 #   N/A
@@ -15,14 +16,16 @@ readonly BUILD_CONF_FILE=${TOP_DIR}/build.conf
 #   1 - failure.
 ################################################################################
 buildUtilsInit() {
+	# Make sure the user has "sudo" capability.
 	echo -n "Test \"sudo\" access ... "
 	sudo -n ls -l /root &> ${LOG}
-	[ $? -ne 0 ] && echo "Fail.  \"`whoami`\" requires \"sudo\" access." && return 1
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail (\"`whoami`\" requires \"sudo\" access).\n" && return 1
 
 	grep -q "sudo: a password is required" ${LOG}
-	[ $? -eq 0 ] && echo "Fail." && return 1
+	[ $? -eq 0 ] && printResult ${RESULT_FAIL} && return 1
 
-	echo "Pass."
+	printResult ${RESULT_PASS}
+
 	return 0
 }
 
@@ -40,15 +43,22 @@ buildUtilsInit() {
 installYUMPackage() {
 	local PKG_NAME=${1}
 
+	# We enable certain repositories for each RHEL release.
+	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+		[ "${PKG_NAME}" != "epel-release" ] && REPOLIST="--enablerepo=epel"
+	else
+		REPOLIST="--enablerepo=PowerTools"
+	fi
+
 	echo -n "    Check for ${PKG_NAME} ... "
-	sudo yum list installed ${PKG_NAME} &> ${LOG}
+	sudo yum ${REPOLIST} list installed ${PKG_NAME} &> ${LOG}
 	if [ $? -eq 0 ]; then
 		printResult ${RESULT_PASS}
 	else
 		printResult ${RESULT_WARN} "Missing.\n"
 
 		echo -n "      Install ... "
-		sudo yum install -y ${PKG_NAME} &> ${LOG}
+		sudo yum ${REPOLIST} install -y ${PKG_NAME} &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 	fi
 }

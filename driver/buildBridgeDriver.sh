@@ -9,6 +9,11 @@ DRIVER_NAME=proxy_bridge
 readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
 
+readonly FUSE_RELEASE=fuse-3.9.2
+readonly FUSE_RELEASE_FILE=${FUSE_RELEASE}.tar.xz
+readonly FUSE_URL=https://github.com/libfuse/libfuse/releases/download/${FUSE_RELEASE}/${FUSE_RELEASE_FILE}
+readonly FUSE_ARCHIVE=./fuse-3.9.2/build/lib/libfuse3.a
+
 ################################################################################
 ################################################################################
 # Processing starts here.
@@ -43,22 +48,120 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 . ${BUILD_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
+# Load our RHEL version library.
+echo -n "    Loading RHEL Version library ... "
+readonly RHEL_VERSION_FILE=${TOP_DIR}/lib/rhelVersion
+[ ! -f ${RHEL_VERSION_FILE} ] && echo "File not found." && exit 1
+. ${RHEL_VERSION_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+buildUtilsInit
+rhelVersionInit
+
 # Check for some required packages.
+[ ${RHEL_MAJOR_VERSION} -eq 7 ] && installYUMPackage "epel-release"
 installYUMPackage "gcc"
-installYUMPackage "fuse3-devel"
 installYUMPackage "libattr-devel"
 installYUMPackage "openssl-devel"
+installYUMPackage "wget"
+installYUMPackage "meson"
+installYUMPackage "ninja-build"
+
+# CD to the build directory.
+echo -n "    CD to build dir ... "
+cd ${BLD_DIR} &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo ""
+
+########################################
+# Build libfuse3.a.
+echo "  libfuse:"
+echo -n "    Is it already built? "
+if [ -f ${FUSE_ARCHIVE} ]; then
+	printResult ${RESULT_PASS} "Yes.\n"
+else
+	printResult ${RESULT_WARN} "No.\n"
+
+	echo -n "    Checking for source archive ... "
+	if [ ! -f ${FUSE_RELEASE_FILE} ]; then 
+		printResult ${RESULT_WARN} "Missing.\n"
+		echo -n "      Downloading source archive ... "
+		wget -O ${FUSE_RELEASE_FILE} ${FUSE_URL} &> ${LOG}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+	fi
+	printResult ${RESULT_PASS}
+
+	echo -n "    Checking for source directory ... "
+	if [ ! -d ${FUSE_RELEASE} ]; then
+		printResult ${RESULT_WARN} "Missing.\n"
+		echo -n "      Opening FUSE image ... "
+		tar xvf ${FUSE_RELEASE_FILE} &> ${LOG}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+		[ ! -d ${FUSE_RELEASE} ] && printResult ${RESULT_FAIL} "Unable to find fuse source code.\n" && exit 1
+	fi
+	printResult ${RESULT_PASS}
+
+	echo -n "    Pushd to build directory ... "
+	pushd ${FUSE_RELEASE} &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    Make build dir ... "
+	mkdir -p build
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    CD to build dir ... "
+	cd build
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    Clean old build ... "
+	rm -rf * &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    Run meson the first time ... "
+	meson .. &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	# Ignore this build.  For some reason, "meson configure" seems to work better
+	# after we've done a build.  So do a throwaway build.
+	echo -n "    Throw away first build ... "
+	ninja-build &> ${LOG}
+	printResult ${RESULT_PASS}
+
+	echo -n "    Skip the \"examples\" build ... "
+	meson configure -Dexamples=false &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    Build the static library ... "
+	meson configure --default-library both . &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    Build libfuse ... "
+	ninja-build &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    Install libfuse (as root) ... "
+	sudo ninja-build install &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	echo -n "    Popd from build directory ... "
+	popd &> ${LOG}
+	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+	# Check again to see if it's built.
+	echo -n "    Make sure it's built ... "
+	if [ -f ${FUSE_ARCHIVE} ]; then
+		printResult ${RESULT_PASS} "Yes.\n"
+	else
+		printResult ${RESULT_FAIL} && exit 1
+	fi
+fi
 
 echo ""
 
 ########################################
 # Go build it.
 echo "  Build driver:"
-
-# CD to the build directory.
-echo -n "    CD to build dir ... "
-cd ${BLD_DIR} &> ${LOG}
-[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 readonly SWITCHES="-D_REENTRANT -Wall -W -Wno-sign-compare -Wmissing-declarations -Wwrite-strings -DFE_OPTIMIZE_HEADER -DKEY_SET_PER_FILE -DDEBUG -DOVERLAY_MOUNT -Wno-unused -I . -I /usr/local/include -g -O0 -fno-strict-aliasing -MD -MP -c"
 
@@ -67,7 +170,7 @@ gcc ${SWITCHES} -D_FILE_OFFSET_BITS=64 -MT ${DRIVER_NAME}.o -o ${DRIVER_NAME}.o 
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo -n "    Linking ... "
-gcc -o	${DRIVER_NAME} ${DRIVER_NAME}.o -L/usr/local/lib -Bdynamic -lcrypto -lz -lc -lpthread -lrt -ldl -Bstatic -lfuse3 &>> ${LOG}
+gcc -o${DRIVER_NAME} ${DRIVER_NAME}.o ${FUSE_ARCHIVE} -lcrypto -lz -lc -lpthread -lrt -ldl &>> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo -n "    Cleanup ... "

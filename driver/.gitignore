@@ -1,4 +1,5 @@
 # Files related to building the proxy_bridge driver.
+fuse-3.9.2*
 proxy_bridge
 *.d
 *.o

@@ -18,14 +18,10 @@ readonly COMMON_UTILS_FILE=/usr/local/lib/commonUtils
 [ ! -f ${COMMON_UTILS_FILE} ] && echo "${COMMON_UTILS_FILE} not found." && exit 1
 . ${COMMON_UTILS_FILE}
 
-# Load our proxy utilities.
-readonly PROXY_UTILS_FILE=/usr/local/lib/proxyUtils
-[ ! -f ${PROXY_UTILS_FILE} ] && echo "${PROXY_UTILS_FILE} not found." && exit 1
-. ${PROXY_UTILS_FILE}
-
 # Initialize our libraries.
 commonInitialization ${LOG} 1
 proxyInitialization ${LOG} 1
+rhelVersionInit ${LOG} 1
 
 ################################################################################
 ################################################################################

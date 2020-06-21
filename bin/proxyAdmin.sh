@@ -18,19 +18,10 @@ readonly COMMON_UTILS_FILE=/usr/local/lib/commonUtils
 [ ! -f ${COMMON_UTILS_FILE} ] && echo "${COMMON_UTILS_FILE} not found." && exit 1
 . ${COMMON_UTILS_FILE}
 
-# Load our network/IPAddr utilities.
-readonly IP_ADDR_UTILS_FILE=/usr/local/lib/ipUtils
-[ ! -f ${IP_ADDR_UTILS_FILE} ] && echo "${IP_ADDR_UTILS_FILE} not found." && exit 1
-. ${IP_ADDR_UTILS_FILE}
-
-# Load our proxy utilities.
-readonly PROXY_UTILS_FILE=/usr/local/lib/proxyUtils
-[ ! -f ${PROXY_UTILS_FILE} ] && echo "${PROXY_UTILS_FILE} not found." && exit 1
-. ${PROXY_UTILS_FILE}
-
 # Initialize our libraries.
 commonInitialization ${LOG} 0
 proxyInitialization ${LOG} 0
+rhelVersionInit ${LOG} 0
 
 ################################################################################
 ################################################################################

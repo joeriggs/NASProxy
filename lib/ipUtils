@@ -75,7 +75,9 @@ ipAddrGet() {
 #   1 - failure.
 ################################################################################
 ipAddrSet() {
-	local NET_IF=ens160
+	local NET_IF CFG_FILE
+	NET_IF="System ens160"
+	CFG_FILE=/etc/sysconfig/network-scripts/ifcfg-ens160
 
 	local IP_ADDR=`getConfigValue    "PROXY_NETWORK_IP_ADDR"`
 	local IP_NETMASK=`getConfigValue "PROXY_NETWORK_IP_NETMASK"`
@@ -90,37 +92,37 @@ ipAddrSet() {
 
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "Set IP address and netmask ... "
-		nmcli con mod ${NET_IF} ipv4.address ${IP_ADDR}${NETMASK_CIDR} &> ${LOG}
+		nmcli con mod "${NET_IF}" ipv4.address ${IP_ADDR}${NETMASK_CIDR} &> ${LOG}
 		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
 	fi
 
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "Set gateway ... "
-		nmcli con mod ${NET_IF} ipv4.gateway ${IP_GATEWAY} &> ${LOG}
+		nmcli con mod "${NET_IF}" ipv4.gateway ${IP_GATEWAY} &> ${LOG}
 		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
 	fi
 
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "Set autoconnect ... "
-		nmcli con mod ${NET_IF} autoconnect yes &> ${LOG}
+		nmcli con mod "${NET_IF}" autoconnect yes &> ${LOG}
 		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
 	fi
 
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "Set \"static\" ... "
-		sudo sed -i -e "s/BOOTPROTO=.*/BOOTPROTO=static/;" /etc/sysconfig/network-scripts/ifcfg-${NET_IF} &> ${LOG}
+		sudo sed -i -e "s/BOOTPROTO=.*/BOOTPROTO=static/;" ${CFG_FILE} &> ${LOG}
 		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
 	fi
 
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "Down ... "
-		nmcli con down ${NET_IF} &> ${LOG}
+		nmcli con down "${NET_IF}" &> ${LOG}
 		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
 	fi
 
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "Up ... "
-		nmcli con up ${NET_IF} &> ${LOG}
+		nmcli con up "${NET_IF}" &> ${LOG}
 		if [ $? -ne 0 ]; then printResult ${RESULT_FAIL} ; RETCODE=1 ; else printResult ${RESULT_PASS} ; fi
 	fi
 

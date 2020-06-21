@@ -36,7 +36,20 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 . ${BUILD_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
+# Load our RHEL version library.
+echo -n "    Loading RHEL Version library ... "
+readonly RHEL_VERSION_FILE=${TOP_DIR}/lib/rhelVersion
+[ ! -f ${RHEL_VERSION_FILE} ] && echo "File not found." && exit 1
+. ${RHEL_VERSION_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+buildUtilsInit
+rhelVersionInit
+
 # Check for some required packages.
+if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+	installYUMPackage "rpm-build"
+fi
 installYUMPackage "rpmdevtools"
 
 echo ""

@@ -24,8 +24,6 @@ readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
 readonly RPM_DIR=${TOP_DIR}/RPM
 
-readonly DO_CENTOS_7=1
-
 ########################################
 echo "Building the VM image:"
 echo "  Initialization:"
@@ -56,12 +54,22 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 . ${BUILD_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
+# Load our RHEL version library.
+echo -n "    Loading RHEL Version library ... "
+readonly RHEL_VERSION_FILE=${TOP_DIR}/lib/rhelVersion
+[ ! -f ${RHEL_VERSION_FILE} ] && echo "File not found." && exit 1
+. ${RHEL_VERSION_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
 # Load our ESXi utilities.
 echo -n "    Loading ESXi utilities library ... "
 readonly ESXI_UTILS_FILE=${TOP_DIR}/lib/esxiUtils
 [ ! -f ${ESXI_UTILS_FILE} ] && echo "File not found." && exit 1
 . ${ESXI_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+buildUtilsInit
+rhelVersionInit
 
 # Load our build conf file.
 loadBuildConfigFile
@@ -75,9 +83,9 @@ installYUMPackage "wget"
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
 
-if [ ${DO_CENTOS_7} -eq 1 ]; then
+if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
 	ISO_REPO_SITE=http://mirror.es.its.nyu.edu/centos/7.8.2003/isos/x86_64
-	ISO_FILE_NAME=CentOS-7-x86_64-Minimal-2003.iso
+	ISO_FILE_NAME=CentOS-7-x86_64-Everything-2003.iso
 	ISO_CSUM_NAME=sha256sum.txt
 else
 	ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
@@ -124,7 +132,6 @@ if [ $? -ne 0 ]; then
 else
 	printResult ${RESULT_WARN} "Missing.\n"
 
-	# Download the ISO.
 	# Check to see if the ISO file and checksum file have been downloaded.
 	# If not, then download them now.
 	echo -n "    Check for ISO file (${ISO_FILE_NAME}) ... "
@@ -157,7 +164,7 @@ else
 	echo "Pass (${CALC_CHECKSUM})."
 
 	echo -n "    Locate checksum in checksum file ... "
-	if [ ${DO_CENTOS_7} -eq 1 ]; then
+	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
 		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | awk {'print $1'}`
 	else
 		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | grep SHA256 | awk {'print $4'}`
@@ -178,7 +185,7 @@ echo ""
 
 ########################################
 # Upload the kickstart ISO to ESXi server.
-echo "  Kickstart ISO Processing:"
+echo "  Delete old kickstart ISO:"
 
 readonly KICKSTART_ISO_NAME=kickstart.iso
 readonly KICKSTART_ISO_PATH=/vmfs/volumes/datastore1/${KICKSTART_ISO_NAME}
@@ -275,25 +282,39 @@ echo ""
 
 ##########
 # Create the kickstart ISO file.
-echo -n "    Create ${KICKSTART_ISO_NAME} ... "
+echo    "    Kickstart ISO:"
+echo    "      Create ks.cfg file ... "
+echo -n "        Delete old ks.cfg file ... "
+rm -f ks/ks.cfg &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "        Create new ks.cfg file ... "
+if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+	cat ks/ks.cfg.el7 ks/ks.cfg.proxy > ks/ks.cfg
+else
+	cat ks/ks.cfg.el8 ks/ks.cfg.proxy > ks/ks.cfg
+fi
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "      Create ${KICKSTART_ISO_NAME} ... "
 mkisofs -V OEMDRV -o ${KICKSTART_ISO_NAME} ks &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "    Upload ${KICKSTART_ISO_NAME} to the ESXi server ... "
+echo -n "      Upload ${KICKSTART_ISO_NAME} to the ESXi server ... "
 runESXiSCPPut ${KICKSTART_ISO_NAME} ${KICKSTART_ISO_PATH}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "    Verify ... "
+echo -n "      Verify ... "
 runESXiCmd "ls -l ${KICKSTART_ISO_PATH}" &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
 grep -q "No such file or directory" ${LOG}
 [ $? -eq 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "    Delete local copy ... "
+echo -n "      Delete local copy ... "
 rm -f ${KICKSTART_ISO_NAME} &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
-echo -n "    Delete NASProxy tar file ... "
+echo -n "      Delete NASProxy tar file ... "
 rm -f ks/${TAR_FILE_NAME} &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 

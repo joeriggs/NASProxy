@@ -1,6 +1,6 @@
 
 ################################################################################
-# Common macros and functions.
+# Common macros and functions used by the scripts that run on the production VM.
 ################################################################################
 
 readonly PERM_NAS_PROXY_CONF_FILE=/usr/local/etc/NASProxy.conf
@@ -30,6 +30,30 @@ commonInitialization() {
 	PRINT_UTILS_FILE=${PROXY_LIB_DIR}/printUtils
 	[ ! -f ${PRINT_UTILS_FILE} ] && echo "File not found." && exit 1
 	. ${PRINT_UTILS_FILE}
+	[ $? -ne 0 ] && echo "Fail." && exit 1
+	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+
+	# Load the RHEL Version library.
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading RHEL version library ... "
+	RHEL_VERSION_FILE=${PROXY_LIB_DIR}/rhelVersion
+	[ ! -f ${RHEL_VERSION_FILE} ] && echo "File not found." && exit 1
+	. ${RHEL_VERSION_FILE}
+	[ $? -ne 0 ] && echo "Fail." && exit 1
+	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+
+	# Load our network/IPAddr utilities.
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading IP Address library ... "
+	IP_ADDR_UTILS_FILE=${PROXY_LIB_DIR}/ipUtils
+	[ ! -f ${IP_ADDR_UTILS_FILE} ] && echo "File not found." && exit 1
+	. ${IP_ADDR_UTILS_FILE}
+	[ $? -ne 0 ] && echo "Fail." && exit 1
+	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+
+	# Load our proxy utilities.
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading IP Address library ... "
+	PROXY_UTILS_FILE=${PROXY_LIB_DIR}/proxyUtils
+	[ ! -f ${PROXY_UTILS_FILE} ] && echo "File not found." && exit 1
+	. ${PROXY_UTILS_FILE}
 	[ $? -ne 0 ] && echo "Fail." && exit 1
 	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
