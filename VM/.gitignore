@@ -1,6 +1,6 @@
 # These are the ISO file and checksum files for the CentOS 7/8 ISO images.
 *.iso
-CHECKSUM
+*CHECKSUM
 sha256sum.txt
 
 # Files that are installed onto the Proxy OVA.

@@ -86,7 +86,7 @@ verifyOvftool
 if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
 	ISO_REPO_SITE=https://download-ib01.fedoraproject.org/pub/fedora/linux/releases/32/Server/x86_64/iso
 	ISO_FILE_NAME=Fedora-Server-dvd-x86_64-32-1.6.iso
-	ISO_CSUM_NAME=sha256sum.txt
+	ISO_CSUM_NAME=Fedora-Server-32-1.6-x86_64-CHECKSUM
 else
 	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
 		ISO_REPO_SITE=http://mirror.es.its.nyu.edu/centos/7.8.2003/isos/x86_64
@@ -171,7 +171,7 @@ else
 
 	echo -n "    Locate checksum in checksum file ... "
 	if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
-		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | awk {'print $1'}`
+		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | tail -1 | awk {'print $4'}`
 	else
 		if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
 			REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | awk {'print $1'}`
