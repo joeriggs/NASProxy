@@ -48,7 +48,7 @@ cp %{_src_lib_dir}/commonUtils                          ${RPM_BUILD_ROOT}/%{_dst
 cp %{_src_lib_dir}/ipUtils                              ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/ipUtils
 cp %{_src_lib_dir}/printUtils                           ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/printUtils
 cp %{_src_lib_dir}/proxyUtils                           ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/proxyUtils
-cp %{_src_lib_dir}/rhelVersion                          ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/rhelVersion
+cp %{_src_lib_dir}/osVersion                            ${RPM_BUILD_ROOT}/%{_dst_lib_dir}/osVersion
 
 %post
 
@@ -56,6 +56,7 @@ echo ">>>>>>>>>>>>>>>>>>>>>>>>"
 echo "Create symbolic link to systemd service."
 ln -s /usr/lib/systemd/system/NASProxy.service /etc/systemd/system/NASProxy.service
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"
+echo ""
 
 # Enable and start nfsd.
 echo ">>>>>>>>>>>>>>>>>>>>>>>>"
@@ -67,6 +68,7 @@ systemctl enable nfs-server
 echo "Get nfs-server status:"
 systemctl status nfs-server
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"
+echo ""
 
 %preun
 

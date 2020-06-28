@@ -54,11 +54,11 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 . ${BUILD_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Load our RHEL version library.
-echo -n "    Loading RHEL Version library ... "
-readonly RHEL_VERSION_FILE=${TOP_DIR}/lib/rhelVersion
-[ ! -f ${RHEL_VERSION_FILE} ] && echo "File not found." && exit 1
-. ${RHEL_VERSION_FILE}
+# Load our Operating System Version library.
+echo -n "    Loading Operating System Version library ... "
+readonly OS_VERSION_FILE=${TOP_DIR}/lib/osVersion
+[ ! -f ${OS_VERSION_FILE} ] && echo "File not found." && exit 1
+. ${OS_VERSION_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
 # Load our ESXi utilities.
@@ -68,11 +68,11 @@ readonly ESXI_UTILS_FILE=${TOP_DIR}/lib/esxiUtils
 . ${ESXI_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-buildUtilsInit
-rhelVersionInit
+buildUtilsInit 4
+osVersionInit ${LOG} 1 4
 
 # Load our build conf file.
-loadBuildConfigFile
+loadBuildConfigFile 4
 
 # Check for some required packages.
 installYUMPackage "expect"
@@ -83,14 +83,20 @@ installYUMPackage "wget"
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
 
-if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-	ISO_REPO_SITE=http://mirror.es.its.nyu.edu/centos/7.8.2003/isos/x86_64
-	ISO_FILE_NAME=CentOS-7-x86_64-Everything-2003.iso
+if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
+	ISO_REPO_SITE=https://download-ib01.fedoraproject.org/pub/fedora/linux/releases/32/Server/x86_64/iso
+	ISO_FILE_NAME=Fedora-Server-dvd-x86_64-32-1.6.iso
 	ISO_CSUM_NAME=sha256sum.txt
 else
-	ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
-	ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
-	ISO_CSUM_NAME=CHECKSUM
+	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+		ISO_REPO_SITE=http://mirror.es.its.nyu.edu/centos/7.8.2003/isos/x86_64
+		ISO_FILE_NAME=CentOS-7-x86_64-Everything-2003.iso
+		ISO_CSUM_NAME=sha256sum.txt
+	else
+		ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
+		ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
+		ISO_CSUM_NAME=CHECKSUM
+	fi
 fi
 readonly ISO_REPO_SITE ISO_FILE_NAME ISO_CSUM_NAME
 
@@ -164,10 +170,14 @@ else
 	echo "Pass (${CALC_CHECKSUM})."
 
 	echo -n "    Locate checksum in checksum file ... "
-	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+	if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
 		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | awk {'print $1'}`
 	else
-		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | grep SHA256 | awk {'print $4'}`
+		if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+			REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | awk {'print $1'}`
+		else
+			REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | grep SHA256 | awk {'print $4'}`
+		fi
 	fi
 	[ -z "${REAL_CHECKSUM}" ] && printResult ${RESULT_FAIL} && exit 1
 	echo "Pass (${REAL_CHECKSUM})."
@@ -289,10 +299,14 @@ rm -f ks/ks.cfg &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo -n "        Create new ks.cfg file ... "
-if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-	cat ks/ks.cfg.el7 ks/ks.cfg.proxy > ks/ks.cfg
+if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
+	cat ks/ks.cfg.fedora32 ks/ks.cfg.proxy > ks/ks.cfg
 else
-	cat ks/ks.cfg.el8 ks/ks.cfg.proxy > ks/ks.cfg
+	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+		cat ks/ks.cfg.el7 ks/ks.cfg.proxy > ks/ks.cfg
+	else
+		cat ks/ks.cfg.el8 ks/ks.cfg.proxy > ks/ks.cfg
+	fi
 fi
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
@@ -316,6 +330,14 @@ rm -f ${KICKSTART_ISO_NAME} &> ${LOG}
 
 echo -n "      Delete NASProxy tar file ... "
 rm -f ks/${TAR_FILE_NAME} &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "      Delete NASEncryptor tar file ... "
+rm -f ks/nasenc.tar &> ${LOG}
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "      Delete new ks.cfg file ... "
+rm -f ks/ks.cfg &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo ""

@@ -33,11 +33,11 @@ commonInitialization() {
 	[ $? -ne 0 ] && echo "Fail." && exit 1
 	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
-	# Load the RHEL Version library.
-	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading RHEL version library ... "
-	RHEL_VERSION_FILE=${PROXY_LIB_DIR}/rhelVersion
-	[ ! -f ${RHEL_VERSION_FILE} ] && echo "File not found." && exit 1
-	. ${RHEL_VERSION_FILE}
+	# Load the Operating System Version library.
+	[ ${VERBOSE} -eq 1 ] && echo -n "  Loading Operating System Version library ... "
+	OS_VERSION_FILE=${PROXY_LIB_DIR}/osVersion
+	[ ! -f ${OS_VERSION_FILE} ] && echo "File not found." && exit 1
+	. ${OS_VERSION_FILE}
 	[ $? -ne 0 ] && echo "Fail." && exit 1
 	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 

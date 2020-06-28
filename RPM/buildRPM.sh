@@ -8,7 +8,7 @@ readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
 export TOP_DIR
 
-echo "Building the RPM file:"
+echo "Building the NAS Proxy RPM file:"
 
 ########################################
 # Initialize some stuff before we start building.
@@ -36,20 +36,18 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 . ${BUILD_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Load our RHEL version library.
-echo -n "    Loading RHEL Version library ... "
-readonly RHEL_VERSION_FILE=${TOP_DIR}/lib/rhelVersion
-[ ! -f ${RHEL_VERSION_FILE} ] && echo "File not found." && exit 1
-. ${RHEL_VERSION_FILE}
+# Load our Operating System Version library.
+echo -n "    Loading Operating System Version library ... "
+readonly OS_VERSION_FILE=${TOP_DIR}/lib/osVersion
+[ ! -f ${OS_VERSION_FILE} ] && echo "File not found." && exit 1
+. ${OS_VERSION_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-buildUtilsInit
-rhelVersionInit
+buildUtilsInit 4
+osVersionInit ${LOG} 1 4
 
 # Check for some required packages.
-if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-	installYUMPackage "rpm-build"
-fi
+[ ${LOCAL_OS_IS_RHEL} -eq 1 ] && [ ${RHEL_MAJOR_VERSION} -eq 7 ] && installYUMPackage "rpm-build"
 installYUMPackage "rpmdevtools"
 
 echo ""

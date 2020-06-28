@@ -1,0 +1,89 @@
+
+################################################################################
+# Determine the version of operating system that is running on this computer.
+# You can run this library on the build and/or production computers.
+################################################################################
+
+LOCAL_OS_IS_FEDORA=0
+FEDORA_VERSION=0
+
+LOCAL_OS_IS_RHEL=0
+RHEL_MAJOR_VERSION=0
+RHEL_MINOR_VERSION=0 
+
+################################################################################
+# Load the variables that describe the local operating system.
+#
+# Input:
+#   LOG_FILE    = The name of the utility's log file.
+#
+#   VERBOSE     = Display console output.
+#
+#   INDENT      = The number of spaces to place at the beginning of each console
+#                 message.  This allows this function to keep its console messages
+#                 in line with the rest of the tools.
+#
+# Output:
+#   Success - Returns to the caller.
+#
+#   Failure - Automatically exits the entire shell script.
+################################################################################
+osVersionInit() {
+	local LOG_FILE=${1}
+	local VERBOSE=${2}
+	local INDENT=${3}
+
+	local SPACER=`printf "%${INDENT}s" ""`
+
+	[ ${VERBOSE} -eq 1 ] && printf "%sGet local operating system information:\n" "${SPACER}"
+	[ ${VERBOSE} -eq 1 ] && printf "%s  Make sure redhat-release is present ... " "${SPACER}"
+	[ ! -f /etc/redhat-release ] && printResult ${RESULT_FAIL} "/etc/redhat-release missing.\n" && exit 1
+	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+
+	[ ${VERBOSE} -eq 1 ] && printf "%s  Get the distribution type ... " "${SPACER}"
+	local DISTRO_NAME=`cat /etc/redhat-release | awk {'print $1'}`
+	case "${DISTRO_NAME}" in
+	"Fedora")
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} "Fedora.\n"
+
+		LOCAL_OS_IS_FEDORA=1
+		unset RHEL_MAJOR_VERSION RHEL_MINOR_VERSION
+
+		[ ${VERBOSE} -eq 1 ] && printf "%s  Get the version ... " "${SPACER}"
+		FEDORA_VERSION=`cat /etc/redhat-release | awk {'print $3'}`
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} "Pass (${FEDORA_VERSION}).\n"
+		;;
+
+	"CentOS")
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} "CentOS.\n"
+
+		LOCAL_OS_IS_RHEL=1
+		unset FEDORA_VERSION
+
+		[ ${VERBOSE} -eq 1 ] && printf "%s  Get the major version ... " "${SPACER}"
+		grep -q "release 8" /etc/redhat-release && RHEL_MAJOR_VERSION=8
+		grep -q "release 7" /etc/redhat-release && RHEL_MAJOR_VERSION=7
+		grep -q "release 6" /etc/redhat-release && RHEL_MAJOR_VERSION=6
+		grep -q "release 5" /etc/redhat-release && RHEL_MAJOR_VERSION=5
+		[ ${RHEL_MAJOR_VERSION} -eq 0 ] && printResult ${RESULT_FAIL} "Can't find RHEL Major Version.\n" && exit 1
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} "Pass (${RHEL_MAJOR_VERSION}).\n"
+
+		[ ${VERBOSE} -eq 1 ] && printf "%s  Get the minor version ... " "${SPACER}"
+		case ${RHEL_MAJOR_VERSION} in 
+		"5") printResult ${RESULT_FAIL} "RHEL version 5 not supported.\n" && exit 1 ;;
+		"6") printResult ${RESULT_FAIL} "RHEL version 6 not supported.\n" && exit 1 ;;
+		"7") RHEL_MINOR_VERSION=`cat /etc/redhat-release | awk {'print $4'} | sed -e "s/\./ /g;" | awk {'print $2'}` ;;
+		"8") RHEL_MINOR_VERSION=`cat /etc/redhat-release | awk {'print $4'} | sed -e "s/\./ /g;" | awk {'print $2'}` ;;
+		esac
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS} "Pass (${RHEL_MINOR_VERSION}).\n"
+
+		readonly RHEL_MAJOR_VERSION RHEL_MINOR_VERSION
+		;;
+
+	?)
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_FAIL}
+		exit 1
+		;;
+	esac
+}
+

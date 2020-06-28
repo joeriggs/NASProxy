@@ -9,15 +9,21 @@ readonly BUILD_CONF_FILE=${TOP_DIR}/build.conf
 # be done here.
 #
 # Input:
-#   N/A
+#   INDENT - The number of spaces to place at the beginning of each console
+#            message.  This allows this function to keep its console messages
+#            in line with the rest of the build tools.
 #
 # Output:
 #   0 - success.
 #   1 - failure.
 ################################################################################
 buildUtilsInit() {
+	local INDENT=${1}
+
+	local SPACER=`printf "%${INDENT}s" ""`
+
 	# Make sure the user has "sudo" capability.
-	echo -n "Test \"sudo\" access ... "
+	printf "%sTest \"sudo\" access ... " "${SPACER}"
 	sudo -n ls -l /root &> ${LOG}
 	[ $? -ne 0 ] && printResult ${RESULT_FAIL} "Fail (\"`whoami`\" requires \"sudo\" access).\n" && return 1
 
@@ -43,11 +49,13 @@ buildUtilsInit() {
 installYUMPackage() {
 	local PKG_NAME=${1}
 
-	# We enable certain repositories for each RHEL release.
-	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-		[ "${PKG_NAME}" != "epel-release" ] && REPOLIST="--enablerepo=epel"
-	else
-		REPOLIST="--enablerepo=PowerTools"
+	# We enable certain repositories for the RHEL releases.
+	if [ ${LOCAL_OS_IS_RHEL} -eq 1 ]; then
+		if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
+			[ "${PKG_NAME}" != "epel-release" ] && REPOLIST="--enablerepo=epel"
+		else
+			REPOLIST="--enablerepo=PowerTools"
+		fi
 	fi
 
 	echo -n "    Check for ${PKG_NAME} ... "
@@ -91,16 +99,29 @@ EOF
 # environment variables should get loaded.  So it can look through and make sure
 # they all loaded.  If anything is missing, this function will ask the user for
 # a value.
+#
+# Input:
+#   INDENT - The number of spaces to place at the beginning of each console
+#            message.  This allows this function to keep its console messages
+#            in line with the rest of the build tools.
+#
+# Output:
+#   Success - Returns to the caller.
+#   Failure - Automatically exits the entire shell script.
 ################################################################################
 loadBuildConfigFile() {
-	echo    "Prepare config file (${BUILD_CONF_FILE}):"
-	echo -n "  Look for config file (${BUILD_CONF_FILE}) ... "
+	local INDENT=${1}
+
+	local SPACER=`printf "%${INDENT}s" ""`
+
+	printf "%sPrepare config file (${BUILD_CONF_FILE}):\n" "${SPACER}"
+	printf "%s  Look for config file (${BUILD_CONF_FILE}) ... " "${SPACER}"
 	if [ -f ${BUILD_CONF_FILE} ]; then
 		echo "Found."
 		. ${BUILD_CONF_FILE}
 	else
 		echo "Missing."
-		echo -n "  Create empty config file ... "
+		printf "%s    Create empty config file ... " "${SPACER}"
 		touch ${BUILD_CONF_FILE}
 		[ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass."
 	fi
@@ -110,13 +131,14 @@ loadBuildConfigFile() {
 
 	# ESXi server.
 	if [ -z "${ESXI_IP}" ] || [ -z "${ESXI_USERNAME}" ] || [ -z "${ESXI_PASSWORD}" ]; then
-		read    -p "    ESXi server IP Address: [${ESXI_IP}] "
+		read    -p "${SPACER}    ESXi server IP Address: [${ESXI_IP}] "
 		ESXI_IP=${REPLY}
-		read    -p "    ESXi server username:   [${ESXI_USERNAME}] "
+		read    -p "${SPACER}    ESXi server username:   [${ESXI_USERNAME}] "
 		ESXI_USERNAME=${REPLY}
-		read -s -p "    ESXi server password:   [${ESXI_PASSWORD}] "
+		read -s -p "${SPACER}    ESXi server password:   [${ESXI_PASSWORD}] "
 		ESXI_PASSWORD=${REPLY}
 		WRITE_FILE=1
+		echo ""
 	fi
 
 	# If the user changed anything, write it back out.

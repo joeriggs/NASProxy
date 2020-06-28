@@ -1,0 +1,45 @@
+#version=DEVEL
+# Use graphical install
+graphical
+# Use CDROM installation media
+cdrom
+
+
+%packages
+@^server-product-environment
+
+%end
+
+# Keyboard layouts
+keyboard --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+# Network information
+network  --hostname=localhost.localdomain
+
+# Run the Setup Agent on first boot
+firstboot --enable
+# System services
+services --enabled="chronyd"
+
+ignoredisk --only-use=sda
+autopart
+# Partition clearing information
+clearpart --none --initlabel
+
+# System timezone
+timezone America/New_York --utc
+
+# Root password
+rootpw --iscrypted $6$TDR/aRMexNctmPcn$4n.DE8VuWPsQH8znAAGr/gq4k52h31YTx0KpxzoOeCG7j2cHh66ou5urMnI7G2.ZILweT.IZ7WKl8n78niWEO.
+
+%addon com_redhat_kdump --disable --reserve-mb='128'
+
+%end
+
+%anaconda
+pwpolicy root --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+pwpolicy user --minlen=6 --minquality=1 --notstrict --nochanges --emptyok
+pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+%end

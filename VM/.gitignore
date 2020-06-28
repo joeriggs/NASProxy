@@ -1,4 +1,4 @@
-# This is the ISO file and checksum file for the CentOS 8.1 ISO image.
+# These are the ISO file and checksum files for the CentOS 7/8 ISO images.
 *.iso
 CHECKSUM
 sha256sum.txt

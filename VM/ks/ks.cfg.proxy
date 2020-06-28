@@ -6,17 +6,35 @@ readonly LOG=/root/NASProxy-install.log
 rm -f ${LOG}
 echo `date` > ${LOG}
 
+# Mount the OS and kickstart ISOs.  We need to access some of the stuff on
+# them.
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "Mount ISO files:"                              &>> ${LOG}
+mkdir -p /mnt/os /mnt/ks                             &>> ${LOG}
+echo "Mount the CentOS ISO:"                         &>> ${LOG}
+mount /dev/sr0 /mnt/os                               &>> ${LOG}
+echo "Mount the kickstart ISO:"                      &>> ${LOG}
+mount /dev/sr1 /mnt/ks                               &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
+
 # Which OS distribution is this?
 echo ""                                              &>> ${LOG}
 echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "FIGURE OUT THE OS VERSION."                    &>> ${LOG}
-grep -q "Linux release 7" /etc/redhat-release        &>> ${LOG}
+echo "FIND OS VERSION AND SET BASEURL."              &>> ${LOG}
+grep -q "Fedora" /etc/redhat-release                 &>> ${LOG}
 if [ $? -eq 0 ]; then
-	echo "THIS IS RHEL 7."                       &>> ${LOG}
-	RHEL_MAJOR_VERSION=7
+	echo "Fedora"                                &>> ${LOG}
+	BASEURL="baseurl=file:///mnt/os"
+elif [ `grep -q "CentOS Linux release 7" /etc/redhat-release` -eq 0 ]; then
+	echo "RHEL 7."                               &>> ${LOG}
+	BASEURL="baseurl=file:///mnt/os"
+elif [ `grep -q "CentOS Linux release 8" /etc/redhat-release` -eq 0 ]; then
+	echo "RHEL 8."                               &>> ${LOG}
+	BASEURL="baseurl=file:///mnt/os/BaseOS"
 else
-	echo "ASSUMING THIS IS RHEL 8."              &>> ${LOG}
-	RHEL_MAJOR_VERSION=8
+	echo "***** UNKNOWN OS *****."               &>> ${LOG}
+	BASEURL="baseurl=file:///mnt/os"
 fi
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 
@@ -32,18 +50,14 @@ echo ""                                              &>> ${LOG}
 echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
 echo "CREATE YUM REPO FILE"                          &>> ${LOG}
 rm -f /etc/yum.repos.d/*                             &>> ${LOG}
-echo "[InstallMedia]"                         > /etc/yum.repos.d/media.repo
-echo "name=media"                            >> /etc/yum.repos.d/media.repo
-echo "mediaid=None"                          >> /etc/yum.repos.d/media.repo
-echo "metadata_expire=-1"                    >> /etc/yum.repos.d/media.repo
-echo "gpgcheck=0"                            >> /etc/yum.repos.d/media.repo
-echo "cost=500"                              >> /etc/yum.repos.d/media.repo
-echo "enabled=1"                             >> /etc/yum.repos.d/media.repo
-if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-	echo "baseurl=file:///mnt/os"        >> /etc/yum.repos.d/media.repo
-else
-	echo "baseurl=file:///mnt/os/BaseOS" >> /etc/yum.repos.d/media.repo
-fi
+echo "[InstallMedia]"      > /etc/yum.repos.d/media.repo
+echo "name=media"         >> /etc/yum.repos.d/media.repo
+echo "mediaid=None"       >> /etc/yum.repos.d/media.repo
+echo "metadata_expire=-1" >> /etc/yum.repos.d/media.repo
+echo "gpgcheck=0"         >> /etc/yum.repos.d/media.repo
+echo "cost=500"           >> /etc/yum.repos.d/media.repo
+echo "enabled=1"          >> /etc/yum.repos.d/media.repo
+echo "${BASEURL}"         >> /etc/yum.repos.d/media.repo
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 echo ""                                              &>> ${LOG}
 echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
@@ -71,18 +85,6 @@ echo "admin	ALL=(ALL)	NOPASSWD: ALL" > /etc/sudoers.d/admin
 # TODO - For production builds, delete the "root" account.  Leave it intact for
 #        development builds.
 
-# Mount the OS and kickstart ISOs.  We need to access some of the stuff on
-# them.
-echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "Mount ISO files:"                              &>> ${LOG}
-mkdir -p /mnt/os /mnt/ks                             &>> ${LOG}
-echo "Mount the CentOS ISO:"                         &>> ${LOG}
-mount /dev/sr0 /mnt/os                               &>> ${LOG}
-echo "Mount the kickstart ISO:"                      &>> ${LOG}
-mount /dev/sr1 /mnt/ks                               &>> ${LOG}
-echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
-echo ""                                              &>> ${LOG}
-
 # Turn off the firewall.
 #
 # TODO - This is too aggressive.  A better solution is to enable ports that we
@@ -106,7 +108,7 @@ cd /                                                 &>> ${LOG}
 RPMFILE=`tar -xvf /mnt/ks/nasproxy.tar`
 echo "UNTAR RESULT $? : RPMFILE ${RPMFILE}"          &>> ${LOG}
 yum install -y ${RPMFILE}                            &>> ${LOG}
-echo "DNF RESULT $?"                                 &>> ${LOG}
+echo "YUM RESULT $?"                                 &>> ${LOG}
 systemctl enable NASProxy                            &>> ${LOG}
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 echo ""                                              &>> ${LOG}
