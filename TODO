@@ -4,10 +4,7 @@ HIGH PRIORITY ==================================================================
 - Add encryption:
   - Hooks into NASProxy project.
   - Create NASEncryptor project.
-    - EncFS.
-
-- CIFS
-  - Export as either NFS or CIFS or BOTH.
+    -eCryptfs.
 
 - Create ./test/deployAWS.sh to deploy NASProxy to Amazon AWS.
 
@@ -27,6 +24,9 @@ HIGH PRIORITY ==================================================================
   - VM/buildVM.sh should show stats while downloading the large ISO files.
 
 - TEST!
+
+- CIFS
+  - Export as either NFS or CIFS or BOTH.
 
 LOWER PRIORITY =================================================================
 
