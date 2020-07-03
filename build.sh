@@ -14,6 +14,40 @@
 #    NASEncryptor git project.
 ################################################################################
 
+################################################################################
+IS_CLEANED=0
+cleanup() {
+	local RC=${1}
+
+	[ ${IS_CLEANED} -ne 0 ] && return
+	IS_CLEANED=1
+
+	local TS_END=`date +%s`
+	local SECONDS=$(( TS_END - TS_BEG ))
+	local ELAPSED_HRS=$(( SECONDS / 3600 ))
+	SECONDS=$(( SECONDS - ELAPSED_HRS * 3600 ))
+	local ELAPSED_MIN=$(( SECONDS / 60 ))
+	SECONDS=$(( SECONDS - ELAPSED_MIN * 60 ))
+
+	# Done.  Success.
+	local ELAPSED_TIME_STR="`printf \"%02d hours : %02d minutes : %02d seconds\" ${ELAPSED_HRS} ${ELAPSED_MIN} ${SECONDS}`"
+	echo ""
+	if [ ${RC} -eq 0 ]; then
+		printResult ${RESULT_PASS} "Success (${ELAPSED_TIME_STR}).\n"
+	else
+		printResult ${RESULT_FAIL} "Failure (${ELAPSED_TIME_STR}).\n"
+	fi
+	echo ""
+	exit ${RC}
+}
+trap "cleanup 0" EXIT
+trap "cleanup 1" SIGHUP
+trap "cleanup 2" SIGQUIT
+trap "cleanup 3" SIGINT
+
+# We'll display the elapsed time at the end.
+TS_BEG=`date +%s`
+
 export TOP_DIR=$( cd `dirname ${0}` && echo ${PWD} )
 readonly DRIVER_BUILD_SCRIPT=${TOP_DIR}/driver/buildBridgeDriver.sh
 readonly RPM_BUILD_SCRIPT=${TOP_DIR}/RPM/buildRPM.sh
@@ -115,6 +149,5 @@ echo ""
 
 ########################################
 # Done.  Success.
-printResult ${RESULT_PASS} "Success.\n"
 exit 0
 
