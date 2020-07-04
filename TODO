@@ -4,7 +4,7 @@ HIGH PRIORITY ==================================================================
 - Add encryption:
   - Hooks into NASProxy project.
   - Create NASEncryptor project.
-    -eCryptfs.
+    -EncFS.
 
 - Change build failures so they "trap".  This will let our trap function print
   an error message in red.

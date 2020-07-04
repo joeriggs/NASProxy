@@ -48,18 +48,9 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 . ${BUILD_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Load our Operating System Version library.
-echo -n "    Loading Operating System Version library ... "
-readonly OS_VERSION_FILE=${TOP_DIR}/lib/osVersion
-[ ! -f ${OS_VERSION_FILE} ] && echo "File not found." && exit 1
-. ${OS_VERSION_FILE}
-[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
-
 buildUtilsInit 4
-osVersionInit ${LOG} 1 4
 
 # Check for some required packages.
-[ ${LOCAL_OS_IS_RHEL} -eq 1 ] && [ ${RHEL_MAJOR_VERSION} -eq 7 ] && installYUMPackage "epel-release"
 installYUMPackage "gcc"
 installYUMPackage "libattr-devel"
 installYUMPackage "openssl-devel"

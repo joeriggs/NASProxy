@@ -21,7 +21,6 @@ readonly COMMON_UTILS_FILE=/usr/local/lib/commonUtils
 # Initialize our libraries.
 commonInitialization ${LOG} 0
 proxyInitialization ${LOG} 0
-osVersionInit ${LOG} 0 0
 
 ################################################################################
 ################################################################################

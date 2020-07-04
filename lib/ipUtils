@@ -76,11 +76,7 @@ ipAddrGet() {
 ################################################################################
 ipAddrSet() {
 	local NET_IF CFG_FILE
-	if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
-		NET_IF="ens160"
-	else
-		NET_IF="System ens160"
-	fi
+	local NET_IF="System ens160"
 	CFG_FILE=/etc/sysconfig/network-scripts/ifcfg-ens160
 
 	local IP_ADDR=`getConfigValue    "PROXY_NETWORK_IP_ADDR"`

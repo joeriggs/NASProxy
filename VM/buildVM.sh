@@ -54,13 +54,6 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 . ${BUILD_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Load our Operating System Version library.
-echo -n "    Loading Operating System Version library ... "
-readonly OS_VERSION_FILE=${TOP_DIR}/lib/osVersion
-[ ! -f ${OS_VERSION_FILE} ] && echo "File not found." && exit 1
-. ${OS_VERSION_FILE}
-[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
-
 # Load our ESXi utilities.
 echo -n "    Loading ESXi utilities library ... "
 readonly ESXI_UTILS_FILE=${TOP_DIR}/lib/esxiUtils
@@ -69,7 +62,6 @@ readonly ESXI_UTILS_FILE=${TOP_DIR}/lib/esxiUtils
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
 buildUtilsInit 4
-osVersionInit ${LOG} 1 4
 
 # Load our build conf file.
 loadBuildConfigFile 4
@@ -83,22 +75,9 @@ installYUMPackage "wget"
 # Make sure the ovftool is installed.  We will need it.
 verifyOvftool
 
-if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
-	ISO_REPO_SITE=https://download-ib01.fedoraproject.org/pub/fedora/linux/releases/32/Server/x86_64/iso
-	ISO_FILE_NAME=Fedora-Server-dvd-x86_64-32-1.6.iso
-	ISO_CSUM_NAME=Fedora-Server-32-1.6-x86_64-CHECKSUM
-else
-	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-		ISO_REPO_SITE=http://mirror.es.its.nyu.edu/centos/7.8.2003/isos/x86_64
-		ISO_FILE_NAME=CentOS-7-x86_64-Everything-2003.iso
-		ISO_CSUM_NAME=sha256sum.txt
-	else
-		ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
-		ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
-		ISO_CSUM_NAME=CHECKSUM
-	fi
-fi
-readonly ISO_REPO_SITE ISO_FILE_NAME ISO_CSUM_NAME
+readonly ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
+readonly ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
+readonly ISO_CSUM_NAME=CHECKSUM
 
 readonly OVA_NAME=NASProxy
 readonly OVA_FILE_NAME=${OVA_NAME}.ova
@@ -170,15 +149,7 @@ else
 	echo "Pass (${CALC_CHECKSUM})."
 
 	echo -n "    Locate checksum in checksum file ... "
-	if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
-		REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | tail -1 | awk {'print $4'}`
-	else
-		if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-			REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | awk {'print $1'}`
-		else
-			REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | grep SHA256 | awk {'print $4'}`
-		fi
-	fi
+	REAL_CHECKSUM=`grep ${ISO_FILE_NAME} ${ISO_CSUM_NAME} | grep SHA256 | awk {'print $4'}`
 	[ -z "${REAL_CHECKSUM}" ] && printResult ${RESULT_FAIL} && exit 1
 	echo "Pass (${REAL_CHECKSUM})."
 
@@ -252,7 +223,7 @@ echo -n "      Create tar file with RPM file ... "
 TAR_FILE_NAME=nasproxy.tar
 TAR_FILE=${PWD}/${TAR_FILE_NAME}
 tar cf ${TAR_FILE} ${RPM_FILE_NAME} &> ${LOG}
-[ -z "${RPM_FILE_NAME}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${RPM_FILE_NAME}).\n"
+[ -z "${RPM_FILE_NAME}" ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS} "Pass (${TAR_FILE_NAME}).\n"
 
 echo -n "      CD back to VM dir ... "
 popd &> /dev/null
@@ -299,15 +270,7 @@ rm -f ks/ks.cfg &> ${LOG}
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo -n "        Create new ks.cfg file ... "
-if [ ${LOCAL_OS_IS_FEDORA} -eq 1 ]; then
-	cat ks/ks.cfg.fedora32 ks/ks.cfg.proxy > ks/ks.cfg
-else
-	if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-		cat ks/ks.cfg.el7 ks/ks.cfg.proxy > ks/ks.cfg
-	else
-		cat ks/ks.cfg.el8 ks/ks.cfg.proxy > ks/ks.cfg
-	fi
-fi
+cat ks/ks.cfg.el8 ks/ks.cfg.proxy > ks/ks.cfg
 [ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 echo -n "      Create ${KICKSTART_ISO_NAME} ... "

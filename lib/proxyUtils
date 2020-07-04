@@ -54,7 +54,7 @@ proxyUtils_LoadExport() {
 	# Ping the NFS Server to make sure we can reach it.
 	echo    "Verify server information:"
 	echo -n "  Ping server ... "
-	ping -c 4 ${NAS_HOST_IP} &> ${LOG}
+	ping -c 4 ${NAS_HOST_IP}
 	if [ $? -ne 0 ]; then
 		printResult ${RESULT_FAIL}
 		RETCODE=1
@@ -65,12 +65,12 @@ proxyUtils_LoadExport() {
 	# Check the server's exported directory.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Look for \"${NAS_HOST_EXPORT}\" on ${NAS_HOST_IP} ... "
-		/usr/sbin/showmount -e ${NAS_HOST_IP} &> ${LOG}
+		/usr/sbin/showmount -e ${NAS_HOST_IP} &> /tmp/showmount.log
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
 		else
-			grep -q "^${NAS_HOST_EXPORT} " ${LOG}
+			grep -q "^${NAS_HOST_EXPORT} " /tmp/showmount.log
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Not found.\n"
 				RETCODE=1
@@ -84,7 +84,7 @@ proxyUtils_LoadExport() {
 	# mount point.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Mount ... "
-		mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT} &> ${LOG}
+		mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
@@ -96,7 +96,7 @@ proxyUtils_LoadExport() {
 	# Insert the NAS Proxy bridge driver (a.k.a. "The Secret Sauce").
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Start bridge ... "
-		PROXY_BRIDGE_DST=${LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${LOCAL_EXPORT_DIR} &> ${LOG}
+		PROXY_BRIDGE_DST=${LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${LOCAL_EXPORT_DIR}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
@@ -110,13 +110,13 @@ proxyUtils_LoadExport() {
 		echo -n "  Export ${LOCAL_EXPORT_DIR} via NFSD ... "
 
 		# Is it already exported, for some strange reason?
-		cat /proc/fs/nfs/exports | grep -qP "^${LOCAL_EXPORT_DIR}\t" &> ${LOG}
+		cat /proc/fs/nfs/exports | grep -qP "^${LOCAL_EXPORT_DIR}\t"
 		if [ $? -eq 0 ]; then
 			printResult ${RESULT_FAIL} "${LOCAL_EXPORT_DIR} is already exported.\n"
 			RETCODE=1
 		else
 			# Export it.
-			exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR} &> ${LOG}
+			exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL}
 				RETCODE=1
@@ -176,12 +176,12 @@ proxyAddEntry() {
 		printResult ${RESULT_FAIL} "Already exists.\n"
 		RETCODE=1
 	else
-		mkdir -p ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
+		mkdir -p ${TMP_LOCAL_MOUNT_POINT}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL} "Cannot create.\n"
 			RETCODE=1
 		else
-			chmod 777 ${TMP_LOCAL_MOUNT_POINT} &> ${LOG}
+			chmod 777 ${TMP_LOCAL_MOUNT_POINT}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot chmod.\n"
 				RETCODE=1
@@ -200,12 +200,12 @@ proxyAddEntry() {
 			printResult ${RESULT_FAIL} "Already exists.\n"
 			RETCODE=1
 		else
-			mkdir -p ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
+			mkdir -p ${TMP_LOCAL_EXPORT_DIR}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot create.\n"
 				RETCODE=1
 			else
-				chmod 777 ${TMP_LOCAL_EXPORT_DIR} &> ${LOG}
+				chmod 777 ${TMP_LOCAL_EXPORT_DIR}
 				if [ $? -ne 0 ]; then
 					printResult ${RESULT_FAIL} "Cannot chmod.\n"
 					RETCODE=1
@@ -285,7 +285,7 @@ proxyRemoveEntry() {
 
 	# Locate the record in the database.
 	echo -n "  Locate export directory in the database ... "
-	grep "^${LOCAL_EXPORT_DIR}|:|:|" ${PERM_NAS_PROXY_DIRS_CONF_FILE} &> ${LOG}
+	grep "^${LOCAL_EXPORT_DIR}|:|:|" ${PERM_NAS_PROXY_DIRS_CONF_FILE} &> /tmp/grep.log
 	if [ $? -ne 0 ]; then
 		printResult ${RESULT_WARN} "Not found.\n"
 		RETCODE=1
@@ -295,7 +295,7 @@ proxyRemoveEntry() {
 
 	# Break the record into the individual fields.
 	if [ ${RETCODE} -eq 0 ]; then
-		local RECORD=`tail -1 ${LOG}`
+		local RECORD=`tail -1 /tmp/grep.log`
 
 		local LOCAL_MOUNT_POINT=` echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $2'}`
 		local SERVER_IP_ADDR=`    echo ${RECORD} | sed -e "s/|:|:|/ /g;" | awk {'print $3'}`
@@ -317,19 +317,19 @@ proxyRemoveEntry() {
 			RETCODE=1
 		else
 			# Unexport.
-			exportfs -u *:${LOCAL_EXPORT_DIR} &> ${LOG}
+			exportfs -u *:${LOCAL_EXPORT_DIR}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot unexport.\n"
 				RETCODE=1
 			else
 				# Unmount the proxy bridge driver from the export dir.
-				fusermount -u ${LOCAL_EXPORT_DIR} &> ${LOG}
+				fusermount -u ${LOCAL_EXPORT_DIR}
 				if [ $? -ne 0 ]; then
 					printResult ${RESULT_FAIL} "Cannot remove proxy bridge.\n"
 					RETCODE=1
 				else
 					# Remove export directory.
-					rmdir ${LOCAL_EXPORT_DIR} &> ${LOG}
+					rmdir ${LOCAL_EXPORT_DIR}
 					if [ $? -ne 0 ]; then
 						printResult ${RESULT_FAIL} "Cannot remove export dir.\n"
 						RETCODE=1
@@ -351,13 +351,13 @@ proxyRemoveEntry() {
 			RETCODE=1
 		else
 			# Unmount.
-			umount -fl ${LOCAL_MOUNT_POINT} &> ${LOG}
+			umount -fl ${LOCAL_MOUNT_POINT}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL} "Cannot unmount.\n"
 				RETCODE=1
 			else
 				# Remove mount directory.
-				rmdir ${LOCAL_MOUNT_POINT} &> ${LOG}
+				rmdir ${LOCAL_MOUNT_POINT}
 				if [ $? -ne 0 ]; then
 					printResult ${RESULT_FAIL}
 					RETCODE=1

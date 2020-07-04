@@ -49,24 +49,15 @@ buildUtilsInit() {
 installYUMPackage() {
 	local PKG_NAME=${1}
 
-	# We enable certain repositories for the RHEL releases.
-	if [ ${LOCAL_OS_IS_RHEL} -eq 1 ]; then
-		if [ ${RHEL_MAJOR_VERSION} -eq 7 ]; then
-			[ "${PKG_NAME}" != "epel-release" ] && REPOLIST="--enablerepo=epel"
-		else
-			REPOLIST="--enablerepo=PowerTools"
-		fi
-	fi
-
 	echo -n "    Check for ${PKG_NAME} ... "
-	sudo yum ${REPOLIST} list installed ${PKG_NAME} &> ${LOG}
+	sudo yum --enablerepo=PowerTools list installed ${PKG_NAME} &> ${LOG}
 	if [ $? -eq 0 ]; then
 		printResult ${RESULT_PASS}
 	else
 		printResult ${RESULT_WARN} "Missing.\n"
 
 		echo -n "      Install ... "
-		sudo yum ${REPOLIST} install -y ${PKG_NAME} &> ${LOG}
+		sudo yum --enablerepo=PowerTools install -y ${PKG_NAME} &> ${LOG}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 	fi
 }

@@ -9,81 +9,75 @@ echo `date` > ${LOG}
 # Mount the OS and kickstart ISOs.  We need to access some of the stuff on
 # them.
 echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "Mount ISO files:"                              &>> ${LOG}
+echo "MOUNTING ISO FILES"                            &>> ${LOG}
+echo "  Create mount point directories"              &>> ${LOG}
 mkdir -p /mnt/os /mnt/ks                             &>> ${LOG}
-echo "Mount the CentOS ISO:"                         &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Mount the CentOS ISO"                        &>> ${LOG}
 mount /dev/sr0 /mnt/os                               &>> ${LOG}
-echo "Mount the kickstart ISO:"                      &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Mount the kickstart ISO"                     &>> ${LOG}
 mount /dev/sr1 /mnt/ks                               &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 echo ""                                              &>> ${LOG}
-
-# Which OS distribution is this?
-echo ""                                              &>> ${LOG}
-echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "FIND OS VERSION AND SET BASEURL."              &>> ${LOG}
-grep -q "Fedora" /etc/redhat-release                 &>> ${LOG}
-if [ $? -eq 0 ]; then
-	echo "Fedora"                                &>> ${LOG}
-	BASEURL="baseurl=file:///mnt/os"
-elif [ `grep -q "CentOS Linux release 7" /etc/redhat-release` -eq 0 ]; then
-	echo "RHEL 7."                               &>> ${LOG}
-	BASEURL="baseurl=file:///mnt/os"
-elif [ `grep -q "CentOS Linux release 8" /etc/redhat-release` -eq 0 ]; then
-	echo "RHEL 8."                               &>> ${LOG}
-	BASEURL="baseurl=file:///mnt/os/BaseOS"
-else
-	echo "***** UNKNOWN OS *****."               &>> ${LOG}
-	BASEURL="baseurl=file:///mnt/os"
-fi
-echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 
 # Use the OS ISO image as a local repo.  That will allow us to install
 # packages from it.
-echo ""                                              &>> ${LOG}
 echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "GET RID OF EXISTING REPO FILES."               &>> ${LOG}
+echo "USE THE CentOS ISO AS THE INSTALL REPO"        &>> ${LOG}
+echo "  Move existing repo files to /tmp"            &>> ${LOG}
 mv /etc/yum.repos.d/* /tmp                           &>> ${LOG}
-echo "RESULT IS $?"                                  &>> ${LOG}
-echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
 echo ""                                              &>> ${LOG}
-echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "CREATE YUM REPO FILE"                          &>> ${LOG}
-rm -f /etc/yum.repos.d/*                             &>> ${LOG}
-echo "[InstallMedia]"      > /etc/yum.repos.d/media.repo
-echo "name=media"         >> /etc/yum.repos.d/media.repo
-echo "mediaid=None"       >> /etc/yum.repos.d/media.repo
-echo "metadata_expire=-1" >> /etc/yum.repos.d/media.repo
-echo "gpgcheck=0"         >> /etc/yum.repos.d/media.repo
-echo "cost=500"           >> /etc/yum.repos.d/media.repo
-echo "enabled=1"          >> /etc/yum.repos.d/media.repo
-echo "${BASEURL}"         >> /etc/yum.repos.d/media.repo
-echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo "  Copy media.repo from the CentOS ISO"         &>> ${LOG}
+cp /mnt/os/media.repo /etc/yum.repos.d               &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
 echo ""                                              &>> ${LOG}
-echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "REPO DIRECTORY:"                               &>> ${LOG}
+echo "  Edit media.repo"                             &>> ${LOG}
+echo "enabled=1"              >> /etc/yum.repos.d/media.repo
+echo "    Result is $?"                              &>> ${LOG}
+echo "baseurl=/mnt/os/BaseOS" >> /etc/yum.repos.d/media.repo
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  List the repo files"                         &>> ${LOG}
 ls -l /etc/yum.repos.d                               &>> ${LOG}
-echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 echo ""                                              &>> ${LOG}
-echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "REPO FILE CONTENTS:"                           &>> ${LOG}
+echo "  Display media.repo contents"                 &>> ${LOG}
 cat /etc/yum.repos.d/media.repo                      &>> ${LOG}
-echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 echo ""                                              &>> ${LOG}
-echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "REPOLIST OUTPUT:"                              &>> ${LOG}
+echo "  Run yum repolist"                            &>> ${LOG}
 yum repolist                                         &>> ${LOG}
-echo "RESULT IS $?"                                  &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 echo ""                                              &>> ${LOG}
 
 # Create the "admin" user account.  Same UID/GID as "root".
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "ADMIN ACCOUNT"                                 &>> ${LOG}
+echo "  Create account"                              &>> ${LOG}
 useradd -s /usr/local/bin/proxyAdmin.sh -o -u 0 -g 0 admin
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Set password"                                &>> ${LOG}
 echo password | passwd admin --stdin
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Give admin sudo privileges"                  &>> ${LOG}
 echo "admin	ALL=(ALL)	NOPASSWD: ALL" > /etc/sudoers.d/admin
+echo "    Result is $?"                              &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
 
 # TODO - For production builds, delete the "root" account.  Leave it intact for
 #        development builds.
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "DELETE ROOT ACCOUNT:"                          &>> ${LOG}
+echo "***** NOT IMPLEMENTED AT THIS TIME *****"      &>> ${LOG}
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
 
 # Turn off the firewall.
 #
@@ -91,40 +85,62 @@ echo "admin	ALL=(ALL)	NOPASSWD: ALL" > /etc/sudoers.d/admin
 #        want to use, and leave everything else locked up.
 echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
 echo "FIREWALL OPERATIONS:"                          &>> ${LOG}
-echo "Stop firewalld:"                               &>> ${LOG}
+echo "  Stop firewalld:"                             &>> ${LOG}
 systemctl stop firewalld                             &>> ${LOG}
-echo "Disable firewalld:"                            &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Disable firewalld:"                          &>> ${LOG}
 systemctl disable firewalld                          &>> ${LOG}
-echo "Get firewalld status:"                         &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Get firewalld status:"                       &>> ${LOG}
 systemctl status firewalld                           &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 echo ""                                              &>> ${LOG}
 
 # Un-tar the tar file that contains the NAS Proxy, install it, and enable it to
 # run at startup.
 echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
-echo "Install NASProxy."                             &>> ${LOG}
+echo "INSTALL NASProxy"                              &>> ${LOG}
+echo "  CD to /"                                     &>> ${LOG}
 cd /                                                 &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Un-tar the tar file"                         &>> ${LOG}
 RPMFILE=`tar -xvf /mnt/ks/nasproxy.tar`
-echo "UNTAR RESULT $? : RPMFILE ${RPMFILE}"          &>> ${LOG}
+echo "    Result is $? (${RPMFILE})"                 &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Install"                                     &>> ${LOG}
 yum install -y ${RPMFILE}                            &>> ${LOG}
-echo "YUM RESULT $?"                                 &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
+echo ""                                              &>> ${LOG}
+echo "  Enable"                                      &>> ${LOG}
 systemctl enable NASProxy                            &>> ${LOG}
+echo "    Result is $?"                              &>> ${LOG}
 echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
 echo ""                                              &>> ${LOG}
 
-# Un-tar the (optional) tar file that contains the NAS Encryptor and install it.
+# Install the optionan NAS Encryptor.
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"                      &>> ${LOG}
+echo "INSTALL NASEncryptor."                         &>> ${LOG}
 if [ -f /mnt/ks/nasenc.tar ]; then
-	echo ">>>>>>>>>>>>>>>>>>>>>>>>"              &>> ${LOG}
+	echo "  CD to /"                             &>> ${LOG}
 	cd /                                         &>> ${LOG}
-	echo "Install NASEncryptor."                 &>> ${LOG}
-	tar -xvf /mnt/ks/nasenc.tar                  &>> ${LOG}
-	echo "UNTAR RESULT $?"                       &>> ${LOG}
-	./installNASEncryptor.sh                     &>> ${LOG}
-	echo "INSTALL SCRIPT RESULT $?"              &>> ${LOG}
-	echo "<<<<<<<<<<<<<<<<<<<<<<<<"              &>> ${LOG}
+	echo "    Result is $?"                      &>> ${LOG}
 	echo ""                                      &>> ${LOG}
+	echo "  Un-tar the tar file"                 &>> ${LOG}
+	tar -xvf /mnt/ks/nasenc.tar                  &>> ${LOG}
+	echo "    Result is $?"                      &>> ${LOG}
+	echo ""                                      &>> ${LOG}
+	echo "  Run the install script"              &>> ${LOG}
+	./installNASEncryptor.sh                     &>> ${LOG}
+	echo "    Result is $?"                      &>> ${LOG}
+else
+	echo "***** NOT INCLUDED *****"              &>> ${LOG}
 fi
+echo "<<<<<<<<<<<<<<<<<<<<<<<<"                      &>> ${LOG}
+echo ""                                              &>> ${LOG}
 
 # TODO - Get rid of the media.repo file and re-issue "yum repolist" and
 #        "yum clean all" in order to clean up.  That way the user can't
