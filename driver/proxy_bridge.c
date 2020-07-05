@@ -93,8 +93,6 @@ static void logMsg(fuse_req_t req, const char *func, int priority, const char *f
 		p = ctx->pid; \
 	} \
 	logMsg(req, __func__, LOG_INFO, "ENTER: (%d %d %d) " fmt, u, g, p, ##__VA_ARGS__); \
-	setfsuid(u); \
-	setfsgid(g); \
 }
 #define LOG_EXIT(req, fmt, ...)  logMsg(req, __func__, LOG_INFO, "EXIT: " fmt, ##__VA_ARGS__)
 #define LOG_TRACE(req, fmt, ...) logMsg(req, __func__, LOG_INFO, fmt, ##__VA_ARGS__)
@@ -151,7 +149,7 @@ static char *modeToString(mode_t mode)
 
 	strcat(modeString, (mode & S_IRGRP) ? "r" : "-");
 	strcat(modeString, (mode & S_IWGRP) ? "w" : "-");
-	strcat(modeString, (mode & S_IWGRP) ? "x" : "-");
+	strcat(modeString, (mode & S_IXGRP) ? "x" : "-");
 
 	strcat(modeString, (mode & S_IROTH) ? "r" : "-");
 	strcat(modeString, (mode & S_IWOTH) ? "w" : "-");
@@ -433,8 +431,11 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
 		}
 
 		if(S_ISLNK(mode)) {
-			if((res = symlinkat(link, dirFD, name)) == -1) {
-				saverr = errno;
+			res = symlinkat(link, dirFD, name);
+			saverr = errno;
+			LOG_TRACE(req, "symlinkat(%s, %d, %s) returned %d",
+			          link, dirFD, name, res);
+			if(res == -1) {
 				LOG_ERROR(req, "symlinkat(%s, %d, %s) failed (%m).",
 				          link, dirFD, name);
 				errno = saverr;
@@ -443,18 +444,25 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
 		}
 
 		else if(S_ISREG(mode)) {
-			if((res = openat(dirFD, name, mode | O_CREAT, rdev)) == -1) {
-				saverr = errno;
-				LOG_ERROR(req, "openat(%d, %s, %o, %d) failed (%m).",
-				          dirFD, name, mode, rdev);
+			int flags = O_CREAT | O_EXCL | O_WRONLY;
+			res = openat(dirFD, name, flags, mode);
+			saverr = errno;
+			LOG_TRACE(req, "openat(%d, %s, %x, %o) returned %d",
+			          dirFD, name, flags, mode, res);
+			if(res == -1) {
+				LOG_ERROR(req, "openat(%d, %s, %x, %o) failed (%m).",
+				          dirFD, name, flags, mode);
 				errno = saverr;
 				break;
 			}
 		}
 
 		else {
-			if((res = mknodat(dirFD, name, mode, rdev)) == -1) {
-				saverr = errno;
+			res = mknodat(dirFD, name, mode, rdev);
+			saverr = errno;
+			LOG_TRACE(req, "mknodat(%d, %s, %o, %d) returned %d",
+			          dirFD, name, mode, rdev, res);
+			if(res == -1) {
 				LOG_ERROR(req, "mknodat(%d, %s, %o, %d) failed (%m).",
 				          dirFD, name, mode, rdev);
 				errno = saverr;

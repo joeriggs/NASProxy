@@ -7,4 +7,5 @@ build.conf
 # VIM temporary files.
 .*.swo
 .*.swp
+tags
 
