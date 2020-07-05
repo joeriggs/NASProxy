@@ -7,7 +7,7 @@
 */
 
 #define _GNU_SOURCE
-#define FUSE_USE_VERSION 30
+#define FUSE_USE_VERSION 31
 
 #include <fuse3/fuse_lowlevel.h>
 
