@@ -49,6 +49,16 @@ commonInitialization() {
 	[ $? -ne 0 ] && echo "Fail." && exit 1
 	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 
+	# Load the optional encryptor utilities.  This file is only available if
+	# we're running as a NAS Encryptor.
+	ENCRYPTOR_UTILS_FILE=${PROXY_LIB_DIR}/encryptorUtils
+	if [ -f ${ENCRYPTOR_UTILS_FILE} ]; then
+		[ ${VERBOSE} -eq 1 ] && echo -n "  Loading Encryptor library ... "
+		. ${ENCRYPTOR_UTILS_FILE}
+		[ $? -ne 0 ] && echo "Fail." && exit 1
+		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
+	fi
+
 	# Make sure we're running as root.
 	[ ${VERBOSE} -eq 1 ] && echo -n "  Make sure running as root ... "
 	USERNAME=`whoami`
@@ -79,12 +89,6 @@ commonInitialization() {
 	else
 		[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_WARN} "Missing.\n"
 	fi
-
-	# Init our log file.
-	[ ${VERBOSE} -eq 1 ] && echo -n "  Init log file (${LOG_FILE}) ... "
-	rm -f ${LOG_FILE} &> /dev/null
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
-	[ ${VERBOSE} -eq 1 ] && printResult ${RESULT_PASS}
 }
 
 ################################################################################

@@ -22,6 +22,11 @@ readonly COMMON_UTILS_FILE=/usr/local/lib/commonUtils
 commonInitialization ${LOG} 0
 proxyInitialization ${LOG} 0
 
+# Make sure the encryptor has its initialization function.
+# Then call the initialization function.
+declare -f encryptorInitialization &> ${LOG}
+[ $? -eq 0 ] && encryptorInitialization ${LOG} 0
+
 ################################################################################
 ################################################################################
 # PROCESSING STARTS HERE

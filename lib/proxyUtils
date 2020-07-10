@@ -163,6 +163,11 @@ proxyAddEntry() {
 	read -p "  Export directory [${TMP_LOCAL_EXPORT_DIR}]: "
 	TMP_LOCAL_EXPORT_DIR=${REPLY:-${TMP_LOCAL_EXPORT_DIR}}
 
+	# Make sure the encryptor is running.  If it is, then call it to
+	# gather necessary information for encrypting the exported directory.
+	declare -f encryptorAddDirectory &> ${LOG}
+	[ $? -eq 0 ] && encryptorAddDirectory ${TMP_LOCAL_EXPORT_DIR} ${TMP_LOCAL_MOUNT_POINT}
+
 	echo ""
 	echo "Proxy path:"
 	echo "  ${TMP_LOCAL_EXPORT_DIR} -> ${TMP_LOCAL_MOUNT_POINT} -> ${TMP_SERVER_IP_ADDR}:${TMP_EXPORT_PATH}"

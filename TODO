@@ -1,8 +1,6 @@
 
 HIGH PRIORITY ==================================================================
 
-- Don't download and build libfuse3.  Just install the package.
-
 - proxyAdmin.sh and proxyStart.sh able to specify VERBOSE for all of the
   proxyUtils functions:
   - proxyAdmin.sh wants a lot of stuff to NOT show up on the console.
