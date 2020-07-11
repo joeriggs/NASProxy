@@ -39,6 +39,7 @@ proxyInitialization() {
 #   NAS_HOST_EXPORT
 #   LOCAL_MOUNT_POINT
 #   LOCAL_EXPORT_DIR
+#   VERBOSE
 #
 # Output:
 #   0 - Success.
@@ -49,13 +50,19 @@ proxyUtils_LoadExport() {
 	local NAS_HOST_EXPORT=${2}
 	local LOCAL_MOUNT_POINT=${3}
 	local LOCAL_EXPORT_DIR=${4}
+	local VERBOSE=${5}
 
 	local RETCODE=0
+
+	# Set the output logfile.  This depends on whether we're running with
+	# VERBOSE turned on.
+	local LOG_FILE=/dev/console
+	[ ${VERBOSE} -eq 0 ] && LOG_FILE=/dev/null
 
 	# Ping the NFS Server to make sure we can reach it.
 	echo    "Verify server information:"
 	echo -n "  Ping server ... "
-	ping -c 4 ${NAS_HOST_IP}
+	ping -c 4 ${NAS_HOST_IP} &> /dev/null
 	if [ $? -ne 0 ]; then
 		printResult ${RESULT_FAIL}
 		RETCODE=1
@@ -79,13 +86,14 @@ proxyUtils_LoadExport() {
 				printResult ${RESULT_PASS}
 			fi
 		fi
+		rm -f /tmp/showmount.log &> ${LOG_FILE}
 	fi
 
 	# Mount the user-specified remote directory onto the newly-created
 	# mount point.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Mount ... "
-		mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT}
+		mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT} &> ${LOG_FILE}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
@@ -98,20 +106,16 @@ proxyUtils_LoadExport() {
 	# data path.
 	if [ ${RETCODE} -eq 0 ]; then
 		declare -f encryptorEncryptStart > /dev/null
-		echo -n "  Start NAS Encryptor ... "
 		[ $? -eq 0 ] && encryptorEncryptStart ${LOCAL_EXPORT_DIR}
 		if [ $? -ne 0 ]; then
-			printResult ${RESULT_FAIL}
 			RETCODE=1
-		else
-			printResult ${RESULT_PASS}
 		fi
 	fi
 
 	# Insert the NAS Proxy bridge driver (a.k.a. "The Secret Sauce").
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Start bridge ... "
-		PROXY_BRIDGE_DST=${LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${LOCAL_EXPORT_DIR}
+		PROXY_BRIDGE_DST=${LOCAL_MOUNT_POINT} /usr/local/bin/proxy_bridge ${LOCAL_EXPORT_DIR} &> /dev/null
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
@@ -131,7 +135,7 @@ proxyUtils_LoadExport() {
 			RETCODE=1
 		else
 			# Export it.
-			exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR}
+			exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR} &> ${LOG_FILE}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL}
 				RETCODE=1
@@ -183,9 +187,8 @@ proxyAddEntry() {
 	declare -f encryptorAddDirectory &> ${LOG}
 	[ $? -eq 0 ] && encryptorAddDirectory ${TMP_LOCAL_EXPORT_DIR} ${TMP_LOCAL_MOUNT_POINT}
 
-	echo ""
-	echo "Proxy path:"
-	echo "  ${TMP_LOCAL_EXPORT_DIR} -> ${TMP_LOCAL_MOUNT_POINT} -> ${TMP_SERVER_IP_ADDR}:${TMP_EXPORT_PATH}"
+	echo "  Proxy path:"
+	echo "    ${TMP_LOCAL_EXPORT_DIR} -> ${TMP_LOCAL_MOUNT_POINT} -> ${TMP_SERVER_IP_ADDR}:${TMP_EXPORT_PATH}"
 	echo ""
 
 	# Check the requested local mount point.
@@ -239,7 +242,7 @@ proxyAddEntry() {
 	echo ""
 
 	if [ ${RETCODE} -eq 0 ]; then
-		proxyUtils_LoadExport ${TMP_SERVER_IP_ADDR} ${TMP_EXPORT_PATH} ${TMP_LOCAL_MOUNT_POINT} ${TMP_LOCAL_EXPORT_DIR}
+		proxyUtils_LoadExport ${TMP_SERVER_IP_ADDR} ${TMP_EXPORT_PATH} ${TMP_LOCAL_MOUNT_POINT} ${TMP_LOCAL_EXPORT_DIR} 1
 		RETCODE=$?
 	fi
 
@@ -445,7 +448,7 @@ proxyReloadEntries() {
 
 		echo " >${LOCAL_EXPORT_DIR}< >${LOCAL_MOUNT_POINT}< >${SERVER_IP_ADDR}< >${SERVER_EXPORT_PATH}<"
 
-		proxyUtils_LoadExport ${SERVER_IP_ADDR} ${SERVER_EXPORT_PATH} ${LOCAL_MOUNT_POINT} ${LOCAL_EXPORT_DIR}
+		proxyUtils_LoadExport ${SERVER_IP_ADDR} ${SERVER_EXPORT_PATH} ${LOCAL_MOUNT_POINT} ${LOCAL_EXPORT_DIR} 0
 	done
 
 	if [ ${RETCODE} -eq 0 ]; then

@@ -3,13 +3,18 @@ HIGH PRIORITY ==================================================================
 
 - proxyAdmin.sh and proxyStart.sh able to specify VERBOSE for all of the
   proxyUtils functions:
+  - Add error checking to the EncFS stuff.  Displaying error messages is part
+    of this task.  They always get displayed, regardless of the VERBOSE level.
+  - Fix so we can Add and Del directories.  That way we can cycle through a
+    test cycle without cleaning up with an external script.
+  - Add "restart on reboot" capability to EncFS.
   - proxyAdmin.sh wants a lot of stuff to NOT show up on the console.
   - proxyStart.sh wants everything to go into a log file for later viewing.
 
 - Add encryption:
-  - Hooks into NASProxy project.
-  - Create NASEncryptor project.
-    -EncFS.
+  - Clean up existing EncFS code.
+  - Re-load after reboot.
+  - Remove encrypted dir.
 
 - Change build failures so they "trap".  This will let our trap function print
   an error message in red.
@@ -55,4 +60,6 @@ V2 TASKS =======================================================================
 
 - Configuration language with SSH access.  This allows the user to write scripts
   that do that configuration.
+
+- Test automation using the SSH cli.
 
