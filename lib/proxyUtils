@@ -29,9 +29,10 @@ proxyInitialization() {
 # Bring up the specified export.  This includes the following steps:
 # 1. Make sure the mount directory exists.
 # 2. Mount it.
-# 3. Make sure the export directory exists.
-# 4. Load the bridge driver between the export directory and the mount point.
-# 5. Export the export directory.
+# 3. Optionally allow the NAS Encryptor to load for the mounted directory.
+# 4. Make sure the export directory exists.
+# 5. Load the bridge driver between the export directory and the mount point.
+# 6. Export the export directory.
 #
 # Input:
 #   NAS_HOST_IP
@@ -85,6 +86,20 @@ proxyUtils_LoadExport() {
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Mount ... "
 		mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT}
+		if [ $? -ne 0 ]; then
+			printResult ${RESULT_FAIL}
+			RETCODE=1
+		else
+			printResult ${RESULT_PASS}
+		fi
+	fi
+
+	# If the NAS Encryptor is running, allow it to insert itself into the
+	# data path.
+	if [ ${RETCODE} -eq 0 ]; then
+		declare -f encryptorEncryptStart > /dev/null
+		echo -n "  Start NAS Encryptor ... "
+		[ $? -eq 0 ] && encryptorEncryptStart ${LOCAL_EXPORT_DIR}
 		if [ $? -ne 0 ]; then
 			printResult ${RESULT_FAIL}
 			RETCODE=1
@@ -163,8 +178,8 @@ proxyAddEntry() {
 	read -p "  Export directory [${TMP_LOCAL_EXPORT_DIR}]: "
 	TMP_LOCAL_EXPORT_DIR=${REPLY:-${TMP_LOCAL_EXPORT_DIR}}
 
-	# Make sure the encryptor is running.  If it is, then call it to
-	# gather necessary information for encrypting the exported directory.
+	# If the NAS Encryptor is running, then call it to gather necessary
+	# information for encrypting the exported directory.
 	declare -f encryptorAddDirectory &> ${LOG}
 	[ $? -eq 0 ] && encryptorAddDirectory ${TMP_LOCAL_EXPORT_DIR} ${TMP_LOCAL_MOUNT_POINT}
 
