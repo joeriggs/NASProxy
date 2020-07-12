@@ -1,8 +1,7 @@
 
 HIGH PRIORITY ==================================================================
 
-- proxyAdmin.sh and proxyStart.sh able to specify VERBOSE for all of the
-  proxyUtils functions:
+- Encryption:
   - Add error checking to the EncFS stuff.  Displaying error messages is part
     of this task.  They always get displayed, regardless of the VERBOSE level.
   - Fix so we can Add and Del directories.  That way we can cycle through a
@@ -10,8 +9,6 @@ HIGH PRIORITY ==================================================================
   - Add "restart on reboot" capability to EncFS.
   - proxyAdmin.sh wants a lot of stuff to NOT show up on the console.
   - proxyStart.sh wants everything to go into a log file for later viewing.
-
-- Add encryption:
   - Clean up existing EncFS code.
   - Re-load after reboot.
   - Remove encrypted dir.
