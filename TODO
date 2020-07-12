@@ -1,6 +1,8 @@
 
 HIGH PRIORITY ==================================================================
 
+- Create ./test/deployAWS.sh to deploy NASProxy to Amazon AWS.
+
 - Encryption:
   - Add error checking to the EncFS stuff.  Displaying error messages is part
     of this task.  They always get displayed, regardless of the VERBOSE level.
@@ -15,8 +17,6 @@ HIGH PRIORITY ==================================================================
 
 - Change build failures so they "trap".  This will let our trap function print
   an error message in red.
-
-- Create ./test/deployAWS.sh to deploy NASProxy to Amazon AWS.
 
 - Splash screen:
 
