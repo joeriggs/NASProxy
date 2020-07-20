@@ -1,7 +1,9 @@
 
 HIGH PRIORITY ==================================================================
 
-- Create ./test/deployAWS.sh to deploy NASProxy to Amazon AWS.
+- proxy_bridge:
+  - Do some work on to make it robust and work really well.
+  - Should be able to do a kernel build.
 
 - Encryption:
   - Add error checking to the EncFS stuff.  Displaying error messages is part
@@ -9,11 +11,12 @@ HIGH PRIORITY ==================================================================
   - Fix so we can Add and Del directories.  That way we can cycle through a
     test cycle without cleaning up with an external script.
   - Add "restart on reboot" capability to EncFS.
-  - proxyAdmin.sh wants a lot of stuff to NOT show up on the console.
+  - proxyAdmin.sh wants a lot of stuff to NOT show up on the console, but it
+    should go into the log file.
   - proxyStart.sh wants everything to go into a log file for later viewing.
   - Clean up existing EncFS code.
   - Re-load after reboot.
-  - Remove encrypted dir.
+  - Remove encrypted dir when doing a "Delete".
 
 - Change build failures so they "trap".  This will let our trap function print
   an error message in red.
@@ -27,7 +30,7 @@ HIGH PRIORITY ==================================================================
 
 - Clean up:
   - The "expect" scripts don't handle failures correctly.  Figure out how to
-    make the "expect" scritps recognize failures and return errors.
+    make the "expect" scripts recognize failures and return errors.
   - Ask user for timezone information.
   - Ask user for NTP information.
   - Lots of repeated stuff.  Move those things to commonUtils.
@@ -41,6 +44,7 @@ HIGH PRIORITY ==================================================================
 LOWER PRIORITY =================================================================
 
 - BUG: Need to reboot the VM in order for the correct IP Address to be set.
+       Right now it has a DHCP address and the static address.
 
 - Take care of all of the "TODO" messages in the scripts.
 
@@ -51,11 +55,12 @@ LOWER PRIORITY =================================================================
 
 V2 TASKS =======================================================================
 
-- Cluster (multiple proxies working together (higher performance)).
+- Cluster (multiple proxies working together (higher performance and high
+  assurance).
 
 - Configuration via web GUI.
 
-- Configuration language with SSH access.  This allows the user to write scripts
+- Scripting language with SSH access.  This allows the user to write scripts
   that do that configuration.
 
 - Test automation using the SSH cli.

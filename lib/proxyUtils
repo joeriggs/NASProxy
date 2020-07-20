@@ -106,9 +106,11 @@ proxyUtils_LoadExport() {
 	# data path.
 	if [ ${RETCODE} -eq 0 ]; then
 		declare -f encryptorEncryptStart > /dev/null
-		[ $? -eq 0 ] && encryptorEncryptStart ${LOCAL_EXPORT_DIR}
-		if [ $? -ne 0 ]; then
-			RETCODE=1
+		if [ $? -eq 0 ]; then
+			encryptorEncryptStart ${LOCAL_EXPORT_DIR}
+			if [ $? -ne 0 ]; then
+				RETCODE=1
+			fi
 		fi
 	fi
 
