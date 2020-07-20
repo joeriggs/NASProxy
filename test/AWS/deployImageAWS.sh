@@ -188,9 +188,21 @@ echo ""
 ####################
 # Make sure the user has an AWS IAM configured.
 echo    "IAM configuration:"
+echo -n "  Check for \"aws\" command ... "
+which aws &> ${LOG}
+if [ $? -ne 0 ]; then
+	echo "Fail.  Run installCli.sh to install the AWS CLI."
+	exit 1
+fi
+echo "Found."
+
 echo -n "  Check for AWS Access Key ID ... "
 aws configure get aws_access_key_id &> ${LOG}
-[ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Found."
+if [ $? -ne 0 ]; then
+	echo "Fail.  Run \"aws configure\" to save your security credentials."
+	exit 1
+fi
+echo "Found."
 
 # Need to have the "vmimport" role.
 echo -n "  Check for \"vmimport\" role ... "
@@ -255,7 +267,7 @@ while true; do
 	COUNTER=$(( COUNTER + 1 ))
 	TS_CUR=`date +%s`
 	ELAPSED_SECONDS=$(( TS_CUR - TS_BEG ))
-	printf "%5d: %5d seconds: Waiting ..." ${COUNTER} ${ELAPSED_SECONDS}
+	printf "%5d: %5d seconds: Waiting ... " ${COUNTER} ${ELAPSED_SECONDS}
 
 	# The following command reports the status of the "aws ec2 import-image"
 	# command that we just executed.  You can sit in a loop and run this

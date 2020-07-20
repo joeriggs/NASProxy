@@ -23,5 +23,9 @@ echo -n "  Install ... "
 sudo ./aws/install &> ${LOG}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass."
 
+echo -n "  Clean up ... "
+rm -rf awscliv2.zip aws &> ${LOG}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass."
+
 exit 0
 
