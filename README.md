@@ -13,6 +13,8 @@ Once you've met the requirements, you can build the OVA file by running ./build.
 
 2. NAS Encryptor - If you specify the environment variable NAS_ENCRYPTOR_DIR, then this build tool will build the NAS Encryptor.  It will expect NAS_ENCRYPTOR_DIR to point to a directory that is a copy of the https://github.com/joeriggs/NASEncryptor project.
 
-Once you've built the OVA file (it will be located in ./NASProxy.ova on your build computer), you can deploy it to your ESXi server by running ./test/deployVM.sh.  deployVM.sh will upload the OVA file to the ESXi server, deploy it, and start it.
+Once you've built the OVA file (it will be located in ./NASProxy.ova on your build computer), you can deploy it to one of the following:
+1. Your ESXi server by running ./test/deploy/ESXi/deployImageESXi.sh.  The script will upload the OVA file to the ESXi server, deploy it, and start it.
+2. Your AWS environment by running ./test/deploy/AWS/deployImageAWS.sh.  The script will perform all of the steps necessary to deploy and load NASProxy.OVA into an AWS AMI.
 
-Once the NAS Proxy is running on your ESXi server, you can access it from the system console.  Log in as admin/password.
+Once the NAS Proxy is running on your server, you can access it from the system console.  Log in as admin/password.
