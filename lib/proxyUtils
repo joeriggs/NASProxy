@@ -137,7 +137,7 @@ proxyUtils_LoadExport() {
 			RETCODE=1
 		else
 			# Export it.
-			exportfs -o rw,fsid=0 *:${LOCAL_EXPORT_DIR} &> ${LOG_FILE}
+			exportfs -o rw,fsid=0,no_root_squash *:${LOCAL_EXPORT_DIR} &> ${LOG_FILE}
 			if [ $? -ne 0 ]; then
 				printResult ${RESULT_FAIL}
 				RETCODE=1
