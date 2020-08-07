@@ -17,6 +17,7 @@
 ################################################################################
 IS_CLEANED=0
 cleanup() {
+	local LINUX_RC=$?
 	local RC=${1}
 
 	[ ${IS_CLEANED} -ne 0 ] && return
@@ -33,7 +34,11 @@ cleanup() {
 	local ELAPSED_TIME_STR="`printf \"%02d hours : %02d minutes : %02d seconds\" ${ELAPSED_HRS} ${ELAPSED_MIN} ${SECONDS}`"
 	echo ""
 	if [ ${RC} -eq 0 ]; then
-		printResult ${RESULT_PASS} "Success (${ELAPSED_TIME_STR}).\n"
+		if [ ${LINUX_RC} -eq 0 ]; then
+			printResult ${RESULT_PASS} "Success (${ELAPSED_TIME_STR}).\n"
+		else
+			printResult ${RESULT_FAIL} "Failure (${LINUX_RC}) (${ELAPSED_TIME_STR}).\n"
+		fi
 	else
 		printResult ${RESULT_FAIL} "Failure (${ELAPSED_TIME_STR}).\n"
 	fi
@@ -99,7 +104,7 @@ readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 echo ""
 
 # Load our build conf file.
-loadBuildConfigFile
+loadBuildConfigFile 0
 echo ""
 
 # Initialize our buildUtils library.

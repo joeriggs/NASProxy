@@ -20,7 +20,7 @@ readonly COMMON_UTILS_FILE=/usr/local/lib/commonUtils
 
 # Initialize our libraries.
 commonInitialization ${LOG} 1
-proxyInitialization ${LOG} 1
+proxyUtils_Initialization ${LOG} 1
 
 ################################################################################
 ################################################################################
@@ -30,7 +30,7 @@ proxyInitialization ${LOG} 1
 
 echo "This is proxyStart.sh running."
 
-proxyReloadEntries &> ${LOG}
+proxyUtils_ReloadEntries &> ${LOG}
 
 while true; do
 	sleep 1m

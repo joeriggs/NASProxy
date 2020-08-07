@@ -12,8 +12,8 @@
 #   name.e
 ################################################################################
 
-readonly RUN_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
-readonly TOP_DIR=$( cd ${RUN_DIR}/..     && echo ${PWD} )
+readonly RUN_DIR=$( cd `dirname ${0}`      && echo ${PWD} )
+readonly TOP_DIR=$( cd ${RUN_DIR}/../../.. && echo ${PWD} )
 
 # Default values for the OVA file and VM name.
 VM_NAME=NASProxy
@@ -29,14 +29,13 @@ else
 	VM_NAME=${filename%.*}
 	unset filename
 fi
-
 readonly OVA_FILE_NAME VM_NAME
-echo "OVA file is > ${OVA_FILE_NAME} <."
-echo "VM name is > ${VM_NAME} <."
-echo ""
 
 ########################################
-echo "Deploy an OVA file:"
+echo "Initialization:"
+
+echo "  OVA file is > ${OVA_FILE_NAME} <."
+echo "  VM name is > ${VM_NAME} <."
 
 echo -n "  CD to the run directory (${RUN_DIR}) ... "
 cd ${RUN_DIR}
@@ -72,7 +71,7 @@ readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
 # Load our build conf file.
-loadBuildConfigFile
+loadBuildConfigFile 2
 echo ""
 
 readonly ESXI_PROJECT_DIR=${ESXI_DATASTORE_DIR}/${VM_NAME}
@@ -97,7 +96,7 @@ echo -n "Verify ${OVA_FILE_NAME} exists ... "
 [ ! -f ${OVA_FILE_NAME} ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 
 # Make sure the ovftool is installed.  We will need it.
-verifyOvftool
+verifyOvftool 0
 
 echo ""
 

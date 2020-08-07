@@ -1,25 +1,33 @@
 
 HIGH PRIORITY ==================================================================
 
-- proxy_bridge:
-  - Do some work on to make it robust and work really well.
-  - Should be able to do a kernel build.
+- PF:
+  - Bootstrap (i.e. register with KS).
+  - Configure a mount.
+  - Then do the tasks listed in the "Encryption" section of this TODO list.
 
 - Encryption:
   - Add error checking to the EncFS stuff.  Displaying error messages is part
     of this task.  They always get displayed, regardless of the VERBOSE level.
-  - Fix so we can Add and Del directories.  That way we can cycle through a
+  - Fix so we can Add and Del directories.  That way we can run through a
     test cycle without cleaning up with an external script.
   - Add "restart on reboot" capability to EncFS.
   - proxyAdmin.sh wants a lot of stuff to NOT show up on the console, but it
     should go into the log file.
-  - proxyStart.sh wants everything to go into a log file for later viewing.
+  - proxyStart.sh wants everything to go into a log file for later viewing.  Or
+    maybe it actually does want it to go to the console, and "systemctl status"
+    can retrieve it from /var/log/messages and display on the console.
   - Clean up existing EncFS code.
   - Re-load after reboot.
-  - Remove encrypted dir when doing a "Delete".
+  - Remove encrypted dir(s) when doing a "Delete".
 
-- Change build failures so they "trap".  This will let our trap function print
-  an error message in red.
+- Break the build.sh script into 2 pieces:
+  - configure
+    - Make sure the build machine is running the correct OS distribution.
+    - Make sure all of the necessary pieces are installed.
+    - Ask the user for the ESXi server info, and store in the .conf file.
+  - build.sh
+    - Does the build without checking for the required tools.
 
 - Splash screen:
 
@@ -28,7 +36,7 @@ HIGH PRIORITY ==================================================================
 - Debugging information:
   - Be able to extract data for debugging.
 
-- Clean up:
+- Maintenance:
   - The "expect" scripts don't handle failures correctly.  Figure out how to
     make the "expect" scripts recognize failures and return errors.
   - Ask user for timezone information.
@@ -42,6 +50,11 @@ HIGH PRIORITY ==================================================================
   - Export as either NFS or CIFS or BOTH.
 
 LOWER PRIORITY =================================================================
+
+- proxy_bridge:
+  - Maybe convert to a kernel module or high-level FUSE driver.
+  - In the meantime, do some work to make it more robust and work really well.
+    - Should be able to do a kernel build.
 
 - BUG: Need to reboot the VM in order for the correct IP Address to be set.
        Right now it has a DHCP address and the static address.
@@ -61,7 +74,7 @@ V2 TASKS =======================================================================
 - Configuration via web GUI.
 
 - Scripting language with SSH access.  This allows the user to write scripts
-  that do that configuration.
+  that do the configuration.
 
 - Test automation using the SSH cli.
 

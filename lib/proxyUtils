@@ -1,5 +1,6 @@
 ################################################################################
-# A library of functions/macros that are used to configure proxy entries.
+# A library of functions/macros that are used to configure proxy entries.  This
+# library is used on the NASProxy VM.
 ################################################################################
 
 readonly PERM_NAS_PROXY_DIRS_CONF_FILE=/usr/local/etc/NASProxyDirs.conf
@@ -16,7 +17,7 @@ readonly PERM_NAS_PROXY_DIRS_CONF_FILE=/usr/local/etc/NASProxyDirs.conf
 #   0 - Success.
 #   1 - Failure.
 ################################################################################
-proxyInitialization() {
+proxyUtils_Initialization() {
 	local LOG_FILE=${1}
 	local VERBOSE=${2}
 
@@ -31,7 +32,7 @@ proxyInitialization() {
 # 2. Mount it.
 # 3. Optionally allow the NAS Encryptor to load for the mounted directory.
 # 4. Make sure the export directory exists.
-# 5. Load the bridge driver between the export directory and the mount point.
+# 5. Load the bridge driver between the export directory and mount directory.
 # 6. Export the export directory.
 #
 # Input:
@@ -89,8 +90,7 @@ proxyUtils_LoadExport() {
 		rm -f /tmp/showmount.log &> ${LOG_FILE}
 	fi
 
-	# Mount the user-specified remote directory onto the newly-created
-	# mount point.
+	# Mount the remote directory onto the mount point.
 	if [ ${RETCODE} -eq 0 ]; then
 		echo -n "  Mount ... "
 		mount ${NAS_HOST_IP}:${NAS_HOST_EXPORT} ${LOCAL_MOUNT_POINT} &> ${LOG_FILE}
@@ -160,7 +160,7 @@ proxyUtils_LoadExport() {
 #   0 - Success.
 #   1 - Failure.
 ################################################################################
-proxyAddEntry() {
+proxyUtils_AddEntry() {
 	local RETCODE=0
 
 	local TMP_SERVER_IP_ADDR=`getConfigValue    "SERVER_IP_ADDR"`
@@ -260,6 +260,8 @@ proxyAddEntry() {
 		else
 			printResult ${RESULT_PASS}
 
+			# TODO - Create a "SaveRecord" function to do this.  And
+			#        create a "LoadRecord" to match it.
 			echo -n "  Save record in database ... "
 			echo "${TMP_LOCAL_EXPORT_DIR}|:|:|${TMP_LOCAL_MOUNT_POINT}|:|:|${TMP_SERVER_IP_ADDR}|:|:|${TMP_EXPORT_PATH}" >> ${PERM_NAS_PROXY_DIRS_CONF_FILE}
 			if [ $? -ne 0 ]; then
@@ -294,7 +296,7 @@ proxyAddEntry() {
 #   0 - Success.
 #   1 - Failure.
 ################################################################################
-proxyRemoveEntry() {
+proxyUtils_RemoveEntry() {
 	local RETCODE=0
 
 	# Get the last "local export dir" that the user created.  It's probably
@@ -309,6 +311,8 @@ proxyRemoveEntry() {
 	LOCAL_EXPORT_DIR=${REPLY:-${LOCAL_EXPORT_DIR}}
 
 	# Locate the record in the database.
+	# TODO - Create a "LoadRecord" function to do this.  And
+	#        create a "SaveRecord" to match it.
 	echo -n "  Locate export directory in the database ... "
 	grep "^${LOCAL_EXPORT_DIR}|:|:|" ${PERM_NAS_PROXY_DIRS_CONF_FILE} &> /tmp/grep.log
 	if [ $? -ne 0 ]; then
@@ -393,6 +397,9 @@ proxyRemoveEntry() {
 		fi
 	fi
 
+	# TODO - Create a "DeleteRecord" function to go along with the
+	#        "LoadRecord" and "SaveRecord" functions mentioned in other
+	#        parts of this module.
 	echo -n "  Remove record from database ... "
 	local ESC_LOCAL_EXPORT_DIR=`echo ${LOCAL_EXPORT_DIR} | sed 's,/,\\\/,g'`
 	sed -i "/^${ESC_LOCAL_EXPORT_DIR}|:|:|/d" ${PERM_NAS_PROXY_DIRS_CONF_FILE}
@@ -425,7 +432,7 @@ proxyRemoveEntry() {
 #   0 - Success.
 #   1 - Failure.
 ################################################################################
-proxyReloadEntries() {
+proxyUtils_ReloadEntries() {
 	local RETCODE=0
 
 	echo "Reloading the exported directories:"
@@ -433,6 +440,10 @@ proxyReloadEntries() {
 
 	IFS="
 "
+
+	# TODO - Create a "RecurseRecords" function for this.  It can use the
+	#        "LoadRecord" function to break each record into its individual
+	#        parts.
 
 	for RECORD in `cat ${PERM_NAS_PROXY_DIRS_CONF_FILE}`; do
 

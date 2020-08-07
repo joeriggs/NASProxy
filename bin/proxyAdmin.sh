@@ -20,7 +20,7 @@ readonly COMMON_UTILS_FILE=/usr/local/lib/commonUtils
 
 # Initialize our libraries.
 commonInitialization ${LOG} 0
-proxyInitialization ${LOG} 0
+proxyUtils_Initialization ${LOG} 0
 
 # Make sure the encryptor has its initialization function.
 # Then call the initialization function.
@@ -52,12 +52,12 @@ while [ ${FINISHED} -eq 0 ]; do
 	read -p "Enter option (1 - 5, or x): "
 
 	case ${REPLY^} in
-	1) changePassword   ;;
-	2) ipAddrGet        ;;
-	3) pingGateway      ;;
-	4) proxyAddEntry    ;;
-	5) proxyRemoveEntry ;;
-	X) FINISHED=1       ;;
+	1) changePassword         ;;
+	2) ipAddrGet              ;;
+	3) pingGateway            ;;
+	4) proxyUtils_AddEntry    ;;
+	5) proxyUtils_RemoveEntry ;;
+	X) FINISHED=1             ;;
 	esac
 done
 

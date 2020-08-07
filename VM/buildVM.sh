@@ -73,7 +73,7 @@ installYUMPackage "genisoimage"
 installYUMPackage "wget"
 
 # Make sure the ovftool is installed.  We will need it.
-verifyOvftool
+verifyOvftool 4
 
 readonly ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
 readonly ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso

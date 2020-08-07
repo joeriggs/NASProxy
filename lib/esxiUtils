@@ -11,13 +11,18 @@
 # 3. Edit the vmware-ovftool/ovftool script and change the shell interpreter
 #    from /bin/bash to /bin/sh.
 # 4. Test it and make sure it works.
+#
 ################################################################################
 
+# This is the hardcoded path for the ovftool.
+# TODO - Make this more flexible.  For example, change verifyOvftool() so that
+#        it will try multiple locations (like just run "which ovftool" to see if
+#        it's on the PATH).
 readonly ESXI_DATASTORE_DIR=/vmfs/volumes/datastore1
 readonly OVFTOOL=${ESXI_DATASTORE_DIR}/vmware-ovftool/ovftool
 
 ################################################################################
-# Create and execute a command against the ESXi server.
+# Create and execute a command on the ESXi server.
 #
 # Output:
 #   0 - Script ran to completion.  No obvious error detected.
@@ -59,7 +64,7 @@ EOF
 		grep -q "Packet corrupt" ${LOG}
 		[ $? -eq 0 ] && continue
 
-		grep "ssh_dispatch_run_fatal" ${LOG} | grep -q "inavlid format"
+		grep "ssh_dispatch_run_fatal" ${LOG} | grep -q "invalid format"
 		[ $? -eq 0 ] && continue
 
 		# If the command didn't run into any of the problems described
@@ -68,7 +73,7 @@ EOF
 	done
 
 	# Set "unknown error" if we tried 5 unsuccessful times.  Then please
-	# go back and take a look and see why we happened.  Then add the reason
+	# go back and take a look and see why it happened.  Then add the reason
 	# to the list of things that we check for in this function.
 	[ ${COUNT} -ge 5 ] && RC=2
 
@@ -76,12 +81,12 @@ EOF
 }
 
 ################################################################################
-# SCP put a file to the ESXi server.
+# SCP "put" a file to the ESXi server.
 #
 # Input:
 #   LCL - The full pathname of the file that we want to copy to the ESXi server.
 #
-#   RMT - THe full pathname on the ESXi server to place the file.
+#   RMT - The full pathname on the ESXi server to place the file.
 ################################################################################
 runESXiSCPPut() {
 	local LCL=${1}
@@ -106,7 +111,7 @@ EOF
 }
 
 ################################################################################
-# SCP get a file from the ESXi server.
+# SCP "get" a file from the ESXi server.
 ################################################################################
 runESXiSCPGet() {
 	local RMT=${1}
@@ -209,14 +214,20 @@ deleteOldVM() {
 # The user has to install it before they can use it.
 #
 # Input:
-#   N/A
+#   INDENT - The number of spaces to place at the beginning of each console
+#            message.  This allows this function to keep its console messages
+#            in line with the rest of the tools.
 #
 # Output:
 #   Success - Logs a message and returns.
 #   Failure - Logs a message and exits.
 ################################################################################
 verifyOvftool() {
-	echo -n "    Verify ovftool is installed on the ESXi server ... "
+	local INDENT=${1}
+
+	local SPACER=`printf "%${INDENT}s" ""`
+
+	printf "%sVerify ovftool is installed on the ESXi server ... " "${SPACER}"
 	runESXiCmd "${OVFTOOL}" &> ${LOG}
 	RC=$?
 	if [ ${RC} -eq 0 ]; then

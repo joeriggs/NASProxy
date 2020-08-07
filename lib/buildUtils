@@ -1,5 +1,5 @@
 ################################################################################
-# Utility functions that are useful when building the NAS Proxy.
+# Utility functions that are useful when building and deploying the NAS Proxy.
 ################################################################################
 
 readonly BUILD_CONF_FILE=${TOP_DIR}/build.conf
@@ -108,13 +108,13 @@ loadBuildConfigFile() {
 	printf "%sPrepare config file (${BUILD_CONF_FILE}):\n" "${SPACER}"
 	printf "%s  Look for config file (${BUILD_CONF_FILE}) ... " "${SPACER}"
 	if [ -f ${BUILD_CONF_FILE} ]; then
-		echo "Found."
+		printResult ${RESULT_PASS} "Found."
 		. ${BUILD_CONF_FILE}
 	else
-		echo "Missing."
+		printResult ${RESULT_WARN} "Missing."
 		printf "%s    Create empty config file ... " "${SPACER}"
 		touch ${BUILD_CONF_FILE}
-		[ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass."
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
 	fi
 
 	# Make sure everything is defined.
@@ -129,10 +129,11 @@ loadBuildConfigFile() {
 		read -s -p "${SPACER}    ESXi server password:   [${ESXI_PASSWORD}] "
 		ESXI_PASSWORD=${REPLY}
 		WRITE_FILE=1
-		echo ""
 	fi
 
 	# If the user changed anything, write it back out.
 	[ ${WRITE_FILE} -eq 1 ] && writeBuildConfigFile
+
+	echo ""
 }
 
