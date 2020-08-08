@@ -33,9 +33,9 @@ fi
 # What are we building?
 echo ""
 if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
-	echo "Building the NAS Encryptor."
+	echo "Configuring the build computer for building the NAS Encryptor."
 else
-	echo "Building the NAS Proxy."
+	echo "Configuring the build computer for building the NAS Proxy."
 fi
 echo ""
 
@@ -108,19 +108,19 @@ fi
 echo ""
 
 ########################################
-# Build the proxy_bridge driver.
+# proxy_bridge driver.
 ${DRIVER_CONFIGURE_SCRIPT}
 [ $? -ne 0 ] && exit 1
 echo ""
 
 ########################################
-# Build the RPM file that essentially represents this version of the NAS Proxy.
+# The RPM file.
 ${RPM_CONFIGURE_SCRIPT}
 [ $? -ne 0 ] && exit 1
 echo ""
 
 ########################################
-# Build the package that contains the NAS Encryptor.
+# The NAS Proxy package.
 if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
 	${NAS_ENCRYPTOR_CONFIGURE_SCRIPT}
 	[ $? -ne 0 ] && exit 1
@@ -128,12 +128,8 @@ if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
 fi
 
 ########################################
-# Build the VM.  It's the actual VM that is loaded into ESXi.
-if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
-	NAS_ENCRYPTOR_DIR="${NAS_ENCRYPTOR_DIR}" ${VM_CONFIGURE_SCRIPT}
-else
-	${VM_CONFIGURE_SCRIPT}
-fi
+# The NAS Proxy OVA file.
+${VM_CONFIGURE_SCRIPT}
 [ $? -ne 0 ] && exit 1
 echo ""
 
