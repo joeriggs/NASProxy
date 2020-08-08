@@ -38,9 +38,6 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 
 buildUtilsInit 4
 
-# Check for some required packages.
-installYUMPackage "rpmdevtools"
-
 echo ""
 
 ########################################

@@ -1,8 +1,9 @@
+
 ################################################################################
 # Utility functions that are useful when building and deploying the NAS Proxy.
 ################################################################################
 
-readonly BUILD_CONF_FILE=${TOP_DIR}/build.conf
+readonly BUILD_CONF_FILE=${TOP_DIR}/.buildrc
 
 ################################################################################
 # Initialize this library.  Anything that needs to be done for every build can
@@ -36,6 +37,58 @@ buildUtilsInit() {
 }
 
 ################################################################################
+# This is a handler that runs when the build and configure scripts end.  It
+# prints a message that lets the user know whether the operation passed or
+# failed.
+#
+# Input:
+#   LINUX_RC - This is the return code from the overall build or configure.
+#
+#   RC       - A code that lets the function know which type of signal caused
+#              the build or configure script to terminate.
+#
+# Output:
+#   Calls "exit" with the proper exit code.
+################################################################################
+IS_CLEANED=0
+cleanup() {
+	local LINUX_RC=$?
+	local RC=${1}
+
+	[ ${IS_CLEANED} -ne 0 ] && return
+	IS_CLEANED=1
+
+	local TS_END=`date +%s`
+	local SECONDS=$(( TS_END - TS_BEG ))
+	local ELAPSED_HRS=$(( SECONDS / 3600 ))
+	SECONDS=$(( SECONDS - ELAPSED_HRS * 3600 ))
+	local ELAPSED_MIN=$(( SECONDS / 60 ))
+	SECONDS=$(( SECONDS - ELAPSED_MIN * 60 ))
+
+	# Done.  Success.
+	local ELAPSED_TIME_STR="`printf \"%02d hours : %02d minutes : %02d seconds\" ${ELAPSED_HRS} ${ELAPSED_MIN} ${SECONDS}`"
+	echo ""
+	if [ ${RC} -eq 0 ]; then
+		if [ ${LINUX_RC} -eq 0 ]; then
+			printResult ${RESULT_PASS} "Success (${ELAPSED_TIME_STR}).\n"
+		else
+			printResult ${RESULT_FAIL} "Failure (${LINUX_RC}) (${ELAPSED_TIME_STR}).\n"
+		fi
+	else
+		printResult ${RESULT_FAIL} "Failure (${ELAPSED_TIME_STR}).\n"
+	fi
+	echo ""
+	exit ${RC}
+}
+trap "cleanup 0" EXIT
+trap "cleanup 1" SIGHUP
+trap "cleanup 2" SIGQUIT
+trap "cleanup 3" SIGINT
+
+# We'll display the elapsed time at the end.
+TS_BEG=`date +%s`
+
+################################################################################
 # Check for the specified CentOS package.  If it's not installed, install it.
 #
 # Input:
@@ -63,29 +116,6 @@ installYUMPackage() {
 }
 
 ################################################################################
-# Write a brand new copy of the config file.
-#
-# Input:
-#   All of the variables are set to their requested values.
-#
-# Output:
-#   0 = success.
-#   1 = failure.
-################################################################################
-writeBuildConfigFile() {
-	echo -n "Saving the build configuration file ... "
-
-	cat > ${BUILD_CONF_FILE} << EOF
-export ESXI_IP=${ESXI_IP}
-export ESXI_USERNAME=${ESXI_USERNAME}
-export ESXI_PASSWORD=${ESXI_PASSWORD}
-EOF
-
-	[ $? -ne 0 ] && printResult ${RESULT_FAIL} ; printResult ${RESULT_PASS}
-	read -p "Press <ENTER> to continue."
-}
-
-################################################################################
 # Load the existing build configuration.  This function knows which build
 # environment variables should get loaded.  So it can look through and make sure
 # they all loaded.  If anything is missing, this function will ask the user for
@@ -108,10 +138,10 @@ loadBuildConfigFile() {
 	printf "%sPrepare config file (${BUILD_CONF_FILE}):\n" "${SPACER}"
 	printf "%s  Look for config file (${BUILD_CONF_FILE}) ... " "${SPACER}"
 	if [ -f ${BUILD_CONF_FILE} ]; then
-		printResult ${RESULT_PASS} "Found."
+		printResult ${RESULT_PASS} "Found.\n"
 		. ${BUILD_CONF_FILE}
 	else
-		printResult ${RESULT_WARN} "Missing."
+		printResult ${RESULT_WARN} "Missing.\n"
 		printf "%s    Create empty config file ... " "${SPACER}"
 		touch ${BUILD_CONF_FILE}
 		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
@@ -129,11 +159,19 @@ loadBuildConfigFile() {
 		read -s -p "${SPACER}    ESXi server password:   [${ESXI_PASSWORD}] "
 		ESXI_PASSWORD=${REPLY}
 		WRITE_FILE=1
+		echo ""
 	fi
 
 	# If the user changed anything, write it back out.
-	[ ${WRITE_FILE} -eq 1 ] && writeBuildConfigFile
-
-	echo ""
+	if [ ${WRITE_FILE} -eq 1 ]; then
+		printf "%s    Saving the build configuration file ... " "${SPACER}"
+		echo "export ESXI_IP=${ESXI_IP}"              > ${BUILD_CONF_FILE}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+		echo "export ESXI_USERNAME=${ESXI_USERNAME}" >> ${BUILD_CONF_FILE}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+		echo "export ESXI_PASSWORD=${ESXI_PASSWORD}" >> ${BUILD_CONF_FILE}
+		[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1
+		printResult ${RESULT_PASS}
+	fi
 }
 

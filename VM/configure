@@ -1,0 +1,64 @@
+#!/bin/bash
+
+################################################################################
+# Configure the local build machine so that it can build the NAS Proxy OVA file.
+################################################################################
+
+readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
+readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
+
+########################################
+echo "Configure computer so it can build the NAS Proxy OVA file:"
+
+########################################
+# Initialize some stuff before we start building.
+echo "  Initialization:"
+
+readonly LOG=/tmp/`basename ${0}`.log
+echo -n "    Initialize log file (${LOG}) ... "
+rm -f ${LOG} &> /dev/null
+[ $? -ne 0 ] && echo "Unable to delete old log file." && exit 1
+touch ${LOG} &> /dev/null
+[ $? -ne 0 ] && echo "Unable to create empty log file." && exit 1
+echo "Pass."
+
+# Load our Print utilities.
+echo -n "    Loading Print utilities library ... "
+readonly PRINT_UTILS_FILE=${TOP_DIR}/lib/printUtils
+[ ! -f ${PRINT_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${PRINT_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+# Load our build utilities.
+echo -n "    Loading build utilities library ... "
+readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
+[ ! -f ${BUILD_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${BUILD_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+# Load our ESXi utilities.
+echo -n "    Loading ESXi utilities library ... "
+readonly ESXI_UTILS_FILE=${TOP_DIR}/lib/esxiUtils
+[ ! -f ${ESXI_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${ESXI_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+buildUtilsInit 4
+
+# Load our build conf file.
+loadBuildConfigFile 4
+
+# Check for some required packages.
+installYUMPackage "expect"
+installYUMPackage "yum-utils"
+installYUMPackage "genisoimage"
+installYUMPackage "wget"
+echo ""
+
+# Make sure the ovftool is installed.  We will need it.
+verifyOvftool 4
+
+echo ""
+printResult ${RESULT_PASS} "  `basename ${0}` Success.\n"
+exit 0
+

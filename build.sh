@@ -94,8 +94,8 @@ readonly PRINT_UTILS_FILE=${TOP_DIR}/lib/printUtils
 . ${PRINT_UTILS_FILE}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
 
-# Load our configuration utilities.
-echo -n "  Loading config utilities library ... "
+# Load our build utilities.
+echo -n "  Loading build utilities library ... "
 readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 [ ! -f ${CONFIG_UTILS_FILE} ] && echo "File not found." && exit 1
 . ${CONFIG_UTILS_FILE}

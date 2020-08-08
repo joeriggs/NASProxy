@@ -66,15 +66,6 @@ buildUtilsInit 4
 # Load our build conf file.
 loadBuildConfigFile 4
 
-# Check for some required packages.
-installYUMPackage "expect"
-installYUMPackage "yum-utils"
-installYUMPackage "genisoimage"
-installYUMPackage "wget"
-
-# Make sure the ovftool is installed.  We will need it.
-verifyOvftool 4
-
 readonly ISO_REPO_SITE=http://mirror.arizona.edu/centos/8.1.1911/isos/x86_64
 readonly ISO_FILE_NAME=CentOS-8.1.1911-x86_64-dvd1.iso
 readonly ISO_CSUM_NAME=CHECKSUM

@@ -45,13 +45,6 @@ readonly BUILD_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 
 buildUtilsInit 4
 
-# Check for some required packages.
-installYUMPackage "gcc"
-installYUMPackage "libattr-devel"
-installYUMPackage "openssl-devel"
-installYUMPackage "zlib-devel"
-installYUMPackage "fuse3-devel"
-
 # CD to the build directory.
 echo -n "    CD to build dir ... "
 cd ${BLD_DIR} &> ${LOG}

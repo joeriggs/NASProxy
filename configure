@@ -1,0 +1,130 @@
+#!/bin/bash
+
+################################################################################
+# Run this script once, before you do a build.  It will make sure you have all of
+# the necessary tools installed on your computer.
+#
+# You can run configure in one of the following ways:
+#
+# 1. Build a plain NAS Proxy - "./configure"
+#    This allows configure to prepare your build computer for building a plain
+#    old NAS Proxy (no encryption).
+#
+# 2. Build a NAS Encryptor - "NAS_ENCRYPTOR=<DIR> ./configure"
+#    If you specify the environment variable NAS_ENCRYPTOR_DIR, then configure
+#    will know that you're building a NAS Encryptor.  It will also execute the
+#    configure script in the <DIR> that you specify, which will allow your
+#    NAS Encryptor project to configure the build computer.
+################################################################################
+
+export TOP_DIR=$( cd `dirname ${0}` && echo ${PWD} )
+readonly DRIVER_CONFIGURE_SCRIPT=${TOP_DIR}/driver/configure
+readonly RPM_CONFIGURE_SCRIPT=${TOP_DIR}/RPM/configure
+readonly VM_CONFIGURE_SCRIPT=${TOP_DIR}/VM/configure
+
+if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
+	readonly BUILD_NAS_ENCRYPTOR=1
+	readonly NAS_ENCRYPTOR_CONFIGURE_SCRIPT=${NAS_ENCRYPTOR_DIR}/build.sh
+else
+	readonly BUILD_NAS_ENCRYPTOR=0
+fi
+
+########################################
+# What are we building?
+echo ""
+if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
+	echo "Building the NAS Encryptor."
+else
+	echo "Building the NAS Proxy."
+fi
+echo ""
+
+########################################
+# Initialize some stuff before we start building.
+echo "Initialization:"
+
+readonly LOG=/tmp/`basename ${0}`.log
+echo -n "  Initialize log file (${LOG}) ... "
+rm -f ${LOG} &> /dev/null
+[ $? -ne 0 ] && echo "Unable to delete old log file." && exit 1
+touch ${LOG} &> /dev/null
+[ $? -ne 0 ] && echo "Unable to create empty log file." && exit 1
+echo "Pass."
+
+# Load our print utilities.
+echo -n "  Loading print utilities library ... "
+readonly PRINT_UTILS_FILE=${TOP_DIR}/lib/printUtils
+[ ! -f ${PRINT_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${PRINT_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+# Load our build utilities.
+echo -n "  Loading build utilities library ... "
+readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/buildUtils
+[ ! -f ${CONFIG_UTILS_FILE} ] && echo "File not found." && exit 1
+. ${CONFIG_UTILS_FILE}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; printResult ${RESULT_PASS}
+
+echo ""
+
+# Load our build conf file.
+loadBuildConfigFile 0
+echo ""
+
+# Initialize our buildUtils library.
+buildUtilsInit
+[ $? -ne 0 ] && exit 1
+
+########################################
+# Locate the configure scripts for each subdirectory.
+echo "Locate configure scripts:"
+echo -n "  Bridge driver (${DRIVER_CONFIGURE_SCRIPT}) ... "
+[ ! -f ${DRIVER_CONFIGURE_SCRIPT} ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "  RPM (${RPM_CONFIGURE_SCRIPT}) ... "
+[ ! -f ${RPM_CONFIGURE_SCRIPT}    ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+echo -n "  OVA File (${VM_CONFIGURE_SCRIPT}) ... "
+[ ! -f ${VM_CONFIGURE_SCRIPT}     ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+
+if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
+	echo -n "  NAS Encryptor (${NAS_ENCRYPTOR_CONFIGURE_SCRIPT}) ... "
+       	[ ! -f ${NAS_ENCRYPTOR_CONFIGURE_SCRIPT} ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+fi
+
+echo ""
+
+########################################
+# Build the proxy_bridge driver.
+${DRIVER_CONFIGURE_SCRIPT}
+[ $? -ne 0 ] && exit 1
+echo ""
+
+########################################
+# Build the RPM file that essentially represents this version of the NAS Proxy.
+${RPM_CONFIGURE_SCRIPT}
+[ $? -ne 0 ] && exit 1
+echo ""
+
+########################################
+# Build the package that contains the NAS Encryptor.
+if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
+	${NAS_ENCRYPTOR_CONFIGURE_SCRIPT}
+	[ $? -ne 0 ] && exit 1
+	echo ""
+fi
+
+########################################
+# Build the VM.  It's the actual VM that is loaded into ESXi.
+if [ ${BUILD_NAS_ENCRYPTOR} -eq 1 ]; then
+	NAS_ENCRYPTOR_DIR="${NAS_ENCRYPTOR_DIR}" ${VM_CONFIGURE_SCRIPT}
+else
+	${VM_CONFIGURE_SCRIPT}
+fi
+[ $? -ne 0 ] && exit 1
+echo ""
+
+########################################
+# Done.  Success.
+exit 0
+
