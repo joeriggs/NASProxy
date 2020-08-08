@@ -67,6 +67,19 @@ readonly CONFIG_UTILS_FILE=${TOP_DIR}/lib/buildUtils
 
 echo ""
 
+# Make sure the build machine is running the correct OS distribution.
+DISTRO_FILE=/etc/redhat-release
+echo "Check local OS distribution:"
+echo -n "  Locate ${DISTRO_FILE} ... "
+[ ! -f ${DISTRO_FILE} ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+echo -n "  Read version information ... "
+DISTRO=`cat ${DISTRO_FILE}`
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+echo -n "  Verify version number ... "
+echo ${DISTRO} | grep -q "CentOS Linux release 8.1.1911"
+[ $? -ne 0 ] && printResult ${RESULT_FAIL} && exit 1 ; printResult ${RESULT_PASS}
+echo ""
+
 # Load our build conf file.
 loadBuildConfigFile 0
 echo ""

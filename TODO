@@ -21,14 +21,6 @@ HIGH PRIORITY ==================================================================
   - Re-load after reboot.
   - Remove encrypted dir(s) when doing a "Delete".
 
-- Break the build.sh script into 2 pieces:
-  - configure
-    - Make sure the build machine is running the correct OS distribution.
-    - Make sure all of the necessary pieces are installed.
-    - Ask the user for the ESXi server info, and store in the .conf file.
-  - build.sh
-    - Does the build without checking for the required tools.
-
 - Splash screen:
 
 - Firmware upgrade:
