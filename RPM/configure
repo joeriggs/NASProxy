@@ -8,7 +8,7 @@ readonly BLD_DIR=$( cd `dirname ${0}`    && echo ${PWD} )
 readonly TOP_DIR=$( cd ${BLD_DIR}/..     && echo ${PWD} )
 export TOP_DIR
 
-echo "Configure computer so it can build the NAS Proxy bridge driver:"
+echo "Configure computer so it can build the NAS Proxy RPM file:"
 
 ########################################
 # Initialize some stuff before we start building.

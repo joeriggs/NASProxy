@@ -24,7 +24,7 @@ readonly VM_CONFIGURE_SCRIPT=${TOP_DIR}/VM/configure
 
 if [ ! -z "${NAS_ENCRYPTOR_DIR}" ]; then
 	readonly BUILD_NAS_ENCRYPTOR=1
-	readonly NAS_ENCRYPTOR_CONFIGURE_SCRIPT=${NAS_ENCRYPTOR_DIR}/build.sh
+	readonly NAS_ENCRYPTOR_CONFIGURE_SCRIPT=${NAS_ENCRYPTOR_DIR}/configure
 else
 	readonly BUILD_NAS_ENCRYPTOR=0
 fi
