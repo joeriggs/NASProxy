@@ -1,4 +1,5 @@
-# The configuration file that contains that build information for this user.
+# The configuration files that contains that build information for this user.
+.bkuprc
 .buildrc
 
 # The end result!

@@ -30,8 +30,20 @@ echo "Mount directly to NAS: ===================================================
 sudo mount -t nfs -o nfsvers=3 ${NAS_IP}:${NAS_EXPORT} ${NAS_MOUNT_POINT}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass." ; echo ""
 
-echo "Doing an ls -l: =========================================================="
+echo "Delete all files from the NAS: ==========================================="
+rm -rf ${NAS_MOUNT_POINT}/*
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass." ; echo ""
+
+echo "Create a new file through the proxy: ====================================="
+echo "This is a test file." > ${PROXY_MOUNT_POINT}/file.txt
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass." ; echo ""
+
+echo "Doing an ls -l through the proxy: ========================================"
 ls -l ${PROXY_MOUNT_POINT}
+[ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass." ; echo ""
+
+echo "Doing an ls -l directly to the NAS: ======================================"
+ls -l ${NAS_MOUNT_POINT}
 [ $? -ne 0 ] && echo "Fail." && exit 1 ; echo "Pass." ; echo ""
 
 echo "Doing a cat: ============================================================="

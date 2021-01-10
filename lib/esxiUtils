@@ -37,7 +37,7 @@ runESXiCmd() {
 
 	cat > /tmp/j.sh << EOF
 #!/usr/bin/expect -f
-set timeout 3600
+set timeout 14400
 spawn ssh -o StrictHostKeyChecking=no ${ESXI_USERNAME}@${ESXI_IP}
 expect "Password:"
 send "${ESXI_PASSWORD}\r"
